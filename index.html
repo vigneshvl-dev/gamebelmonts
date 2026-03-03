@@ -27,7 +27,22 @@
             <h2 class="welcome-text">WELCOME TO CODE ARENA</h2>
         </div>
     </div>
+    <!-- Loading SFX -->
     <audio id="loading-sfx" src="https://www.soundjay.com/mechanical/sounds/power-up-1.mp3"></audio>
+
+    <!-- Background Music (looping) -->
+    <audio id="bg-music" loop preload="auto">
+        <!-- Iconic "Bloody Tears" Theme from Castlevania II: Simon's Quest -->
+        <source
+            src="https://ia800605.us.archive.org/32/items/lp_castlevania-ii-simons-quest_konami-kukeiha-club/disc1/02.%20Konami%20Kukeiha%20Club%20-%20Bloody%20Tears%20%28Day%20Level%29.mp3"
+            type="audio/mpeg">
+    </audio>
+
+    <!-- Floating Music Toggle Button -->
+    <button id="music-toggle" class="music-btn" title="Toggle Music">
+        <span id="music-icon">🎵</span>
+        <span id="music-label">MUSIC ON</span>
+    </button>
 
     <div id="bg-container">
         <div class="gradient-bg"></div>
@@ -47,9 +62,124 @@
                 </div>
                 <h1 class="glitch-title" data-text="BELMONTS">BELMONTS</h1>
                 <p class="subtitle">Enter the Tech War Arena</p>
-                <div class="input-group">
-                    <input type="text" id="player-name" placeholder="ENTER CODENAME" maxlength="15">
-                    <button id="start-battle" class="neon-button">START BATTLE</button>
+
+                <div id="role-selection" class="role-selection">
+                    <div class="role-card glass admin" id="role-admin">
+                        <span class="role-icon">⚡</span>
+                        <h3>ADMIN</h3>
+                        <p>Control the Battle</p>
+                    </div>
+                    <div class="role-card glass participant" id="role-participant">
+                        <span class="role-icon">⚔️</span>
+                        <h3>PARTICIPANT</h3>
+                        <p>Join the Fight</p>
+                    </div>
+                </div>
+
+                <div id="player-input-group" class="input-group hidden">
+                    <p class="input-label">"ENTER YOUR PIRATE NAME"</p>
+                    <input type="text" id="player-name" placeholder="CODENAME" maxlength="20">
+                    <span id="name-error" class="error-msg hidden">NAME ALREADY TAKEN BY ANOTHER PIRATE</span>
+                    <button id="start-battle" class="neon-button">INITIALIZE COMBAT</button>
+                    <button id="back-to-roles" class="text-link">GO BACK</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Login Screen -->
+        <section id="admin-login-screen" class="screen">
+            <div class="hero">
+                <h1 class="glitch-title" data-text="ADMIN ACCESS">ADMIN ACCESS</h1>
+                <div class="login-frame terror-frame">
+                    <input type="password" id="admin-password" placeholder="ENTER ACCESS CODE">
+                    <p class="hint">"What's the One Piece crew called?"</p>
+                    <button id="login-btn" class="neon-button purple">VERIFY CLEARANCE</button>
+                    <button id="cancel-admin" class="text-link">ABORT</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Panel Screen -->
+        <section id="admin-panel-screen" class="screen">
+            <div class="admin-panel glass">
+                <nav class="admin-tabs">
+                    <button class="tab-btn active" data-tab="tab-control">⚡ CONTROL</button>
+                    <button class="tab-btn" data-tab="tab-players">👥 PLAYERS</button>
+                    <button class="tab-btn" data-tab="tab-scores">🏆 SCORES</button>
+                    <div class="tab-indicator"></div>
+                </nav>
+
+                <div class="admin-content">
+                    <div id="tab-control" class="tab-pane active">
+                        <section class="panel-section">
+                            <h3 class="panel-label">ARENA LEVEL SELECTOR</h3>
+                            <div class="level-grid">
+                                <div class="level-card glass" data-level="1">
+                                    <span class="lvl-num">LV 1</span>
+                                    <h4>Binary Challenge</h4>
+                                </div>
+                                <div class="level-card glass" data-level="2">
+                                    <span class="lvl-num">LV 2</span>
+                                    <h4>Hardware Builder</h4>
+                                </div>
+                                <div class="level-card glass" data-level="3">
+                                    <span class="lvl-num">LV 3</span>
+                                    <h4>Stack & Queue Battle</h4>
+                                </div>
+                                <div class="level-card glass" data-level="4">
+                                    <span class="lvl-num">LV 4</span>
+                                    <h4>Network Defender</h4>
+                                </div>
+                                <div class="level-card glass" data-level="5">
+                                    <span class="lvl-num">LV 5</span>
+                                    <h4>Tech Escape Room</h4>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="panel-section">
+                            <h3 class="panel-label">BATTLE COMMANDS</h3>
+                            <div class="command-group">
+                                <button id="admin-start" class="neon-button">▶ START LEVEL</button>
+                                <button id="admin-show" class="neon-button purple">📢 SHOW ANSWER</button>
+                                <button id="admin-next" class="neon-button">➡ NEXT QUESTION</button>
+                                <button id="admin-stop" class="neon-button red">⏹ STOP</button>
+                            </div>
+                            <div class="status-monitor">
+                                STATUS: <span id="status-badge" class="badge">STANDBY</span>
+                                LEVEL: <span id="active-level-label">NONE</span>
+                            </div>
+                        </section>
+
+                        <section class="panel-section danger">
+                            <h3 class="panel-label">DANGER ZONE</h3>
+                            <button id="admin-reset" class="neon-button red outline">RESET ENTIRE GAME</button>
+                        </section>
+                    </div>
+
+                    <div id="tab-players" class="tab-pane">
+                        <div class="add-player-box">
+                            <input type="text" id="manual-player-name" placeholder="NEW CODENAME">
+                            <button id="add-player-btn" class="neon-button small">ADD UNIT</button>
+                        </div>
+                        <div class="player-roster">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>RANK</th>
+                                        <th>NAME</th>
+                                        <th>SCORE</th>
+                                        <th>ACTION</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-player-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="tab-scores" class="tab-pane">
+                        <div id="admin-leaderboard" class="leaderboard-visuals"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -57,28 +187,37 @@
         <!-- Lobby Screen -->
         <section id="lobby-screen" class="screen">
             <h2 class="section-title">WAR LOBBY</h2>
+            <div class="lobby-info">
+                <span id="participant-count-badge" class="glass">UNITS DETECTED: 0</span>
+            </div>
             <div class="lobby-container glass">
-                <div id="player-list" class="player-grid">
-                    <!-- Players added via JS -->
+                <div class="player-roster-header">
+                    <span>#</span>
+                    <span>CODENAME</span>
+                    <span>SCORE</span>
                 </div>
-                <div class="lobby-controls">
-                    <button id="launch-game" class="neon-button purple">LAUNCH MISSION</button>
-                </div>
+                <div id="player-list" class="player-grid-list"></div>
             </div>
         </section>
 
         <!-- Quiz Screen -->
         <section id="quiz-screen" class="screen">
-            <div class="quiz-header">
-                <div class="timer-container">
-                    <div id="timer-bar"></div>
+            <div class="quiz-layout">
+                <div class="quiz-main">
+                    <div class="quiz-header">
+                        <div class="timer-container">
+                            <div id="timer-bar"></div>
+                        </div>
+                        <div class="score-display">DATA SYNC: <span id="current-score">0</span></div>
+                    </div>
+                    <div class="question-card glass">
+                        <p id="question-text">Initializing encounter...</p>
+                        <div id="answer-grid" class="answer-grid"></div>
+                    </div>
                 </div>
-                <div class="score-display">DATA SYNC: <span id="current-score">0</span></div>
-            </div>
-            <div class="question-card glass">
-                <p id="question-text">Initializing encounter...</p>
-                <div id="answer-grid" class="answer-grid">
-                    <!-- Answers added via JS -->
+                <div class="mini-leaderboard glass">
+                    <h4 class="mini-title">BATTLE RANKINGS</h4>
+                    <div id="mini-roster" class="mini-roster"></div>
                 </div>
             </div>
         </section>
@@ -86,10 +225,9 @@
         <!-- Result Screen -->
         <section id="result-screen" class="screen">
             <h2 class="section-title">BATTLE REPORT</h2>
+            <div id="personal-rank-box" class="personal-rank glass terror-frame"></div>
             <div class="result-container glass">
-                <div id="leaderboard" class="leaderboard">
-                    <!-- Leaderboard added via JS -->
-                </div>
+                <div id="leaderboard" class="leaderboard"></div>
                 <button id="play-again" class="neon-button pulse">RE-REBOOT</button>
             </div>
         </section>
