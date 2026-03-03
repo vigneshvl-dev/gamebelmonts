@@ -619,13 +619,15 @@ const MusicManager = {
         this.btnEl.onclick = () => this.toggle();
     },
 
-    play(screen) {
+    play() {
         if (this.muted) return;
         this.audio.play().catch(() => {
             // Autoplay blocked - will play at next interaction
-            document.addEventListener('click', () => {
+            const resume = () => {
                 if (!this.muted) this.audio.play().catch(() => { });
-            }, { once: true });
+                document.removeEventListener('click', resume);
+            };
+            document.addEventListener('click', resume);
         });
     },
 
@@ -657,15 +659,4 @@ const MusicManager = {
 
 initLoading();
 
-document.addEventListener('DOMContentLoaded', () => {
-    const bgMusic = document.getElementById('bg-music');
-
-    // Ensure music plays after user interaction
-    const playMusic = () => {
-        bgMusic.play().catch(err => console.error('Music playback failed:', err));
-        document.removeEventListener('click', playMusic);
-    };
-
-    document.addEventListener('click', playMusic);
-});
 
