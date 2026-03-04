@@ -346,6 +346,11 @@ body {
     box-shadow: 0 0 30px rgba(0, 242, 255, 0.3);
 }
 
+.role-card.training:hover {
+    border-color: var(--neon-gold);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+}
+
 .role-icon {
     font-size: 2.5rem;
     margin-bottom: 1rem;
