@@ -101,6 +101,10 @@ body {
     height: 100%;
     z-index: 9999;
     background: var(--bg-dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     max-width: none;
 }
 
