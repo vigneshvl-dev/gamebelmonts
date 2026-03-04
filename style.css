@@ -398,8 +398,10 @@ body {
 }
 
 .screen.active {
-    display: flex;
+    display: flex !important;
     pointer-events: auto;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 @keyframes fadeIn {

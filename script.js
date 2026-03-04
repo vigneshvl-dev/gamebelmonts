@@ -82,13 +82,13 @@ function showScreen(screenId) {
     screens.forEach(s => {
         s.classList.remove('active');
         s.style.display = 'none';
-        s.style.opacity = '0';
+        s.style.opacity = ''; // Clear inline opacity 
     });
     const target = getEl(screenId);
     if (target) {
         target.classList.add('active');
         target.style.display = 'flex';
-        setTimeout(() => target.style.opacity = '1', 10);
+        target.style.opacity = '1'; // Force visible
         state.currentScreen = screenId;
         updateUI();
         ArenaLog.info("DEBUG: Screen switched to -> " + screenId);
@@ -337,34 +337,41 @@ if (!supabase) {
     ArenaLog.info("DEBUG: Supabase instance initialized successfully.");
 }
 
-// Ensure the loading screen is hidden after a timeout
-setTimeout(() => {
+// Ensure the loading screen is hidden and app screen is displayed
+function ensureAppVisible() {
     const loader = document.getElementById('loading-screen');
+    const app = document.getElementById('app');
+
     if (loader) {
         loader.classList.remove('active');
         loader.style.display = 'none';
-        ArenaLog.info("DEBUG: Loading screen automatically hidden after timeout.");
+        ArenaLog.info("DEBUG: Loading screen hidden.");
     } else {
-        ArenaLog.warn("DEBUG: Loading screen element not found during auto-hide.");
+        ArenaLog.warn("DEBUG: Loading screen element not found.");
     }
 
-    const app = document.getElementById('app');
     if (app) {
         app.style.display = 'flex';
-        ArenaLog.info("DEBUG: App screen displayed after timeout.");
+        ArenaLog.info("DEBUG: App screen displayed.");
         showScreen('home-screen');
     } else {
-        ArenaLog.warn("DEBUG: App element not found during auto-display.");
+        ArenaLog.err("DEBUG: App element not found.");
     }
-}, 5000); // Adjust timeout as needed
+}
 
-// Add event listener to ensure forceRevealArena works
+// Automatically ensure the app is visible after a timeout
+setTimeout(() => {
+    ArenaLog.info("DEBUG: Timeout reached, ensuring app visibility.");
+    ensureAppVisible();
+}, 5000);
+
+// Ensure the Force Override button works
 const forceButton = document.getElementById('force-enter-btn');
 if (forceButton) {
     forceButton.style.display = 'block'; // Ensure the button is visible
     forceButton.addEventListener('click', () => {
         ArenaLog.info("DEBUG: Force Override button clicked.");
-        forceRevealArena();
+        ensureAppVisible();
     });
 } else {
     ArenaLog.warn("DEBUG: Force Override button not found.");
