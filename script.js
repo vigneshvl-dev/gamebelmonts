@@ -1,4 +1,4 @@
-// --- BELMONTS: TECH ARENA - Core Logic (God-Tier Robustness) ---
+// --- BELMONTS: TECH ARENA - Core Logic ---
 
 // 1. Diagnostics & Logging
 const ArenaLog = {
@@ -17,9 +17,11 @@ try {
     if (window.supabase) {
         supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
         ArenaLog.info("SUPABASE: INSTANCE ACQUIRED");
+    } else {
+        ArenaLog.warn("SUPABASE: Library not loaded, running in offline mode");
     }
 } catch (e) {
-    ArenaLog.err("SUPABASE: FATAL INITIALIZATION ERROR");
+    ArenaLog.err("SUPABASE: FATAL INITIALIZATION ERROR - " + e.message);
 }
 
 // 3. Global State
@@ -67,7 +69,7 @@ const questionsBank = {
         { q: "Which layer of the OSI model handles routing?", a: ["Physical", "Data Link", "Network", "Transport"], correct: 2 }
     ],
     5: [
-        { q: "What is the time complexity of a Binary Search algorithm?", a: ["O(n)", "O(n²)", "O(log n)", "O(1)"], correct: 2 },
+        { q: "What is the time complexity of a Binary Search algorithm?", a: ["O(n)", "O(n^2)", "O(log n)", "O(1)"], correct: 2 },
         { q: "Which keyword is used to create a constant variable in ES6?", a: ["var", "let", "const", "static"], correct: 2 },
         { q: "What is the result of typeof null in JavaScript?", a: ["'null'", "'undefined'", "'object'", "'number'"], correct: 2 }
     ]
@@ -77,23 +79,23 @@ const getEl = (id) => document.getElementById(id);
 
 // 4. UI Engine
 function showScreen(screenId) {
-    ArenaLog.info("DEBUG: Switching to screen -> " + screenId);
+    ArenaLog.info("Switching to screen -> " + screenId);
     const screens = document.querySelectorAll('.screen');
     screens.forEach(s => {
         s.classList.remove('active');
         s.style.display = 'none';
-        s.style.opacity = ''; // Clear inline opacity 
+        s.style.opacity = '';
     });
     const target = getEl(screenId);
     if (target) {
         target.classList.add('active');
         target.style.display = 'flex';
-        target.style.opacity = '1'; // Force visible
+        target.style.opacity = '1';
         state.currentScreen = screenId;
         updateUI();
-        ArenaLog.info("DEBUG: Screen switched to -> " + screenId);
+        ArenaLog.info("Screen switched to -> " + screenId);
     } else {
-        ArenaLog.err("DEBUG: Screen element not found -> " + screenId);
+        ArenaLog.err("Screen element not found -> " + screenId);
     }
 }
 
@@ -106,7 +108,7 @@ function updateUI() {
     }
 }
 
-// REST OF LOGIC (Sync, Admin, etc.) - Simplified if necessary but kept robust
+// Sync Manager
 const SyncManager = {
     async joinPlayer(player) { try { if (supabase) await supabase.from('players').upsert([player]); } catch (e) { } },
     async updateScore(pId, points) { try { if (supabase) { const p = state.global.players.find(x => x.id === pId); if (p) await supabase.from('players').update({ score: p.score + points }).eq('id', pId); } } catch (e) { } },
@@ -139,7 +141,7 @@ function renderAdminData() {
 
     if (s) {
         s.innerText = state.global.phase.toUpperCase();
-        s.className = `stat-value ${state.global.phase}`;
+        s.className = 'stat-value ' + state.global.phase;
     }
     if (l) l.innerText = state.global.currentLevel;
     if (tp) tp.innerText = state.global.players.length;
@@ -160,7 +162,7 @@ function renderAdminData() {
         list.innerHTML = '';
         state.global.players.filter(p => p.status === 'active').forEach((p, i) => {
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${p.name}</td><td>${p.score}</td><td>${state.global.currentLevel}</td><td>Playing</td><td><button class="neon-button small red outline" onclick="SyncManager.kickPlayer('${p.id}')">Remove</button></td>`;
+            row.innerHTML = '<td>' + p.name + '</td><td>' + p.score + '</td><td>' + state.global.currentLevel + '</td><td>Playing</td><td><button class="neon-button small red outline" onclick="SyncManager.kickPlayer(\'' + p.id + '\')">Remove</button></td>';
             list.appendChild(row);
         });
     }
@@ -171,7 +173,7 @@ function renderAdminData() {
         const sorted = [...state.global.players].sort((a, b) => b.score - a.score);
         sorted.forEach((p, i) => {
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${p.name}</td><td>${p.score}</td><td>${Math.floor(p.score / 100)}</td><td>--</td>`;
+            row.innerHTML = '<td>' + p.name + '</td><td>' + p.score + '</td><td>' + Math.floor(p.score / 100) + '</td><td>--</td>';
             liveBoard.appendChild(row);
         });
     }
@@ -183,7 +185,23 @@ function syncParticipantScreen() {
     else if (g.phase === 'playing' && state.currentScreen !== 'quiz-screen') showScreen('quiz-screen');
 }
 
-// 5. Global Click Delegator
+// 5. Force Reveal Arena - For manual override
+function forceRevealArena() {
+    ArenaLog.info("Force reveal triggered");
+    const loader = getEl('loading-screen');
+    const app = getEl('app');
+    
+    if (loader) {
+        loader.classList.remove('active');
+        loader.style.display = 'none';
+    }
+    if (app) {
+        app.style.display = 'flex';
+    }
+    showScreen('home-screen');
+}
+
+// 6. Global Click Delegator
 function initNavigation() {
     document.addEventListener('click', (e) => {
         const target = e.target.closest('[id], .sidebar-btn, .tab-btn, .level-card');
@@ -197,26 +215,42 @@ function initNavigation() {
         }
         if (id === 'role-participant' || target.closest('#role-participant')) {
             ArenaLog.info("PARTICIPANT ROLE SELECTED");
-            getEl('role-selection')?.classList.add('hidden');
-            getEl('player-input-group')?.classList.remove('hidden');
+            var roleSelection = getEl('role-selection');
+            var playerInput = getEl('player-input-group');
+            if (roleSelection) roleSelection.classList.add('hidden');
+            if (playerInput) playerInput.classList.remove('hidden');
         }
         if (id === 'back-to-roles') {
-            getEl('player-input-group')?.classList.add('hidden');
-            getEl('role-selection')?.classList.remove('hidden');
+            var playerInput2 = getEl('player-input-group');
+            var roleSelection2 = getEl('role-selection');
+            if (playerInput2) playerInput2.classList.add('hidden');
+            if (roleSelection2) roleSelection2.classList.remove('hidden');
         }
         if (id === 'cancel-admin') showScreen('home-screen');
         if (id === 'login-btn') {
             const p = getEl('admin-password');
-            if (p?.value === '9500') { state.userRole = 'ADMIN'; showScreen('admin-panel-screen'); }
-            else { p?.classList.add('wrong-auth'); setTimeout(() => p?.classList.remove('wrong-auth'), 500); }
+            if (p && (p.value.toLowerCase() === 'straw hats' || p.value === '9500')) { 
+                state.userRole = 'ADMIN'; 
+                showScreen('admin-panel-screen'); 
+            } else if (p) { 
+                p.classList.add('wrong-auth'); 
+                setTimeout(function() { p.classList.remove('wrong-auth'); }, 500); 
+            }
         }
         if (id === 'start-battle') {
-            const n = getEl('player-name')?.value.trim();
-            if (n?.length >= 2) {
-                state.playerName = n; state.playerId = 'P-' + Date.now(); state.userRole = 'PARTICIPANT';
+            const nameInput = getEl('player-name');
+            const n = nameInput ? nameInput.value.trim() : '';
+            if (n.length >= 2) {
+                state.playerName = n; 
+                state.playerId = 'P-' + Date.now(); 
+                state.userRole = 'PARTICIPANT';
                 SyncManager.joinPlayer({ id: state.playerId, name: n, score: 0, joinTime: Date.now(), status: 'active' });
                 showScreen('lobby-screen');
             }
+        }
+        // Force button
+        if (id === 'force-enter-btn') {
+            forceRevealArena();
         }
         // Tabs
         if (target.classList.contains('sidebar-btn') && !target.classList.contains('danger-text')) {
@@ -231,7 +265,7 @@ function initNavigation() {
         if (target.classList.contains('level-card')) {
             SyncManager.updateGameState({ current_level: parseInt(target.dataset.level) });
         }
-        // Admin Cmds
+        // Admin Commands
         if (id === 'ctrl-start') SyncManager.updateGameState({ phase: 'playing', question_index: 0 });
         if (id === 'ctrl-pause') SyncManager.updateGameState({ phase: 'paused' });
         if (id === 'ctrl-restart') SyncManager.updateGameState({ phase: 'playing', question_index: state.global.questionIndex });
@@ -246,163 +280,65 @@ function initNavigation() {
             }
         }
         if (id === 'admin-logout') showScreen('home-screen');
+        if (id === 'play-again') showScreen('home-screen');
     });
 }
 
-// 6. Initialization Sequence (Bulletproof)
+// 7. Initialization Sequence
 function initArena() {
     if (window.ARENA_INITIALIZED) return;
     window.ARENA_INITIALIZED = true;
     ArenaLog.info("BOOT SEQUENCE INITIATED");
 
+    // Initialize click handlers
     initNavigation();
+    
+    // Subscribe to Supabase if available
     if (supabase) SyncManager.subscribe();
 
-    const finishStartup = () => {
+    // Hide loading screen and show app after short delay
+    setTimeout(function() {
         ArenaLog.info("FINISHING STARTUP...");
         const loader = getEl('loading-screen');
         const app = getEl('app');
+        
         if (app) app.style.display = 'flex';
+        
         if (loader) {
-            setTimeout(() => {
-                loader.classList.remove('active');
-                loader.style.display = 'none';
-                showScreen('home-screen');
-            }, 800);
-        } else {
-            showScreen('home-screen');
+            loader.classList.remove('active');
+            loader.style.display = 'none';
         }
-    };
-
-    // Give it 2 seconds for effect, then reveal
-    setTimeout(finishStartup, 2000);
+        
+        showScreen('home-screen');
+        ArenaLog.info("ARENA READY");
+    }, 2500);
 }
 
-// Startup Trigger
-if (document.readyState === 'complete' || document.readyState === 'interactive') initArena();
-else window.addEventListener('DOMContentLoaded', initArena);
+// Start when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    ArenaLog.info("DOM Content Loaded");
+    initArena();
+});
 
-// Final Safety Net
-setTimeout(() => {
+// Fallback: If DOMContentLoaded already fired
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    ArenaLog.info("Document already ready, initializing...");
+    setTimeout(initArena, 100);
+}
+
+// Safety net: Force show after 5 seconds no matter what
+setTimeout(function() {
     const loader = getEl('loading-screen');
-    if (loader && loader.style.display !== 'none' && loader.style.opacity !== '0') {
-        ArenaLog.warn("SAFETY NET TRIGGERED");
-        initArena();
-        loader.style.display = 'none';
-        const app = getEl('app');
-        if (app) app.style.display = 'flex';
-        showScreen('home-screen');
+    if (loader && (loader.style.display !== 'none')) {
+        ArenaLog.warn("SAFETY NET TRIGGERED - Forcing app display");
+        forceRevealArena();
     }
 }, 5000);
 
+// Expose globals for debugging and HTML onclick handlers
 window.SyncManager = SyncManager;
 window.state = state;
 window.showScreen = showScreen;
+window.forceRevealArena = forceRevealArena;
 
-// Add debugging logs to identify issues
-ArenaLog.info("DEBUG: Script loaded and initialized.");
-
-// Enhance forceRevealArena function
-function forceRevealArena() {
-    ArenaLog.info("DEBUG: forceRevealArena triggered.");
-    var loader = document.getElementById('loading-screen');
-    if (loader) {
-        loader.classList.remove('active');
-        loader.style.display = 'none';
-        ArenaLog.info("DEBUG: Loading screen hidden.");
-    } else {
-        ArenaLog.warn("DEBUG: Loading screen element not found.");
-    }
-
-    var app = document.getElementById('app');
-    if (app) {
-        app.style.display = 'flex';
-        ArenaLog.info("DEBUG: App screen displayed.");
-    } else {
-        ArenaLog.warn("DEBUG: App element not found.");
-    }
-
-    if (typeof showScreen === 'function') {
-        showScreen('home-screen');
-        ArenaLog.info("DEBUG: showScreen('home-screen') called.");
-    } else {
-        ArenaLog.err("DEBUG: showScreen function not defined.");
-    }
-}
-
-// Add a check for Supabase initialization
-if (!supabase) {
-    ArenaLog.err("DEBUG: Supabase instance not initialized.");
-} else {
-    ArenaLog.info("DEBUG: Supabase instance initialized successfully.");
-}
-
-// Ensure the loading screen is hidden and app screen is displayed
-function ensureAppVisible() {
-    const loader = document.getElementById('loading-screen');
-    const app = document.getElementById('app');
-
-    if (loader) {
-        loader.classList.remove('active');
-        loader.style.display = 'none';
-        ArenaLog.info("DEBUG: Loading screen hidden.");
-    } else {
-        ArenaLog.warn("DEBUG: Loading screen element not found.");
-    }
-
-    if (app) {
-        app.style.display = 'flex';
-        ArenaLog.info("DEBUG: App screen displayed.");
-        showScreen('home-screen');
-    } else {
-        ArenaLog.err("DEBUG: App element not found.");
-    }
-}
-
-// Automatically ensure the app is visible after a timeout
-setTimeout(() => {
-    ArenaLog.info("DEBUG: Timeout reached, ensuring app visibility.");
-    ensureAppVisible();
-}, 5000);
-
-// Force the app to display the home screen and log every step
-function forceAppDisplay() {
-    ArenaLog.info("DEBUG: Attempting to force app display.");
-
-    const loader = document.getElementById('loading-screen');
-    const app = document.getElementById('app');
-
-    if (loader) {
-        loader.classList.remove('active');
-        loader.style.display = 'none';
-        ArenaLog.info("DEBUG: Loading screen hidden.");
-    } else {
-        ArenaLog.err("DEBUG: Loading screen element not found.");
-    }
-
-    if (app) {
-        app.style.display = 'flex';
-        ArenaLog.info("DEBUG: App screen displayed.");
-        showScreen('home-screen');
-    } else {
-        ArenaLog.err("DEBUG: App element not found.");
-    }
-}
-
-// Automatically force the app display after a timeout
-setTimeout(() => {
-    ArenaLog.info("DEBUG: Timeout reached, forcing app display.");
-    forceAppDisplay();
-}, 5000);
-
-// Ensure the Force Override button works
-const forceButton = document.getElementById('force-enter-btn');
-if (forceButton) {
-    forceButton.style.display = 'block'; // Ensure the button is visible
-    forceButton.addEventListener('click', () => {
-        ArenaLog.info("DEBUG: Force Override button clicked.");
-        forceAppDisplay();
-    });
-} else {
-    ArenaLog.warn("DEBUG: Force Override button not found.");
-}
+ArenaLog.info("Script loaded successfully");
