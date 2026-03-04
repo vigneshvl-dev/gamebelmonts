@@ -209,14 +209,47 @@ function renderAdminData() {
     getEl('status-badge').innerText = state.global.phase.toUpperCase();
     getEl('active-level-label').innerText = levels.find(l => l.id === state.global.currentLevel)?.name || 'NONE';
 
-    const list = getEl('admin-player-list');
-    list.innerHTML = '';
-    state.global.players.filter(p => p.status === 'active').forEach((p, i) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td>${i + 1}</td><td>${p.name}</td><td>${p.score}</td><td><button class="text-link red" onclick="SyncManager.kickPlayer('${p.id}')">KICK</button></td>`;
-        list.appendChild(row);
+    // Highlight Level Card
+    document.querySelectorAll('.level-card').forEach(card => {
+        if (parseInt(card.dataset.level) === state.global.currentLevel) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
     });
+
+    // Player Roster
+    const list = getEl('admin-player-list');
+    if (list) {
+        list.innerHTML = '';
+        state.global.players.filter(p => p.status === 'active').forEach((p, i) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${i + 1}</td><td>${p.name}</td><td>${p.score}</td><td><button class="text-link red" onclick="SyncManager.kickPlayer('${p.id}')">KICK</button></td>`;
+            list.appendChild(row);
+        });
+    }
+
+    // Leaderboard (Scores Tab)
+    const board = getEl('admin-leaderboard');
+    if (board) {
+        board.innerHTML = '';
+        const sorted = [...state.global.players].sort((a, b) => b.score - a.score);
+        sorted.forEach((p, i) => {
+            const item = document.createElement('div');
+            item.className = 'score-row';
+            const percent = Math.min(100, (p.score / 1500) * 100);
+            item.innerHTML = `
+                <div class="score-info"><span>${i + 1}. ${p.name}</span><span>${p.score} XP</span></div>
+                <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${percent}%"></div></div>
+            `;
+            board.appendChild(item);
+        });
+    }
 }
+
+// Global exposure for inline event handlers
+window.SyncManager = SyncManager;
+window.state = state;
 
 // Participant Sync
 function syncParticipantScreen() {
@@ -282,24 +315,122 @@ function showResults() {
 // Event Bindings (Safe)
 const safeBind = (id, fn) => { const el = getEl(id); if (el) el.onclick = fn; };
 
+// Administrator Terminal Logic
+function initAdminTerminal() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    const indicator = document.querySelector('.tab-indicator');
+
+    const updateTabIndicator = (btn) => {
+        if (!indicator || !btn) return;
+        indicator.style.width = btn.offsetWidth + 'px';
+        indicator.style.left = btn.offsetLeft + 'px';
+    };
+
+    tabButtons.forEach(btn => {
+        btn.onclick = () => {
+            tabButtons.forEach(b => b.classList.remove('active'));
+            tabPanes.forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            getEl(btn.dataset.tab).classList.add('active');
+            updateTabIndicator(btn);
+            renderAdminData();
+        };
+    });
+
+    // Level Selection
+    document.querySelectorAll('.level-card').forEach(card => {
+        card.onclick = () => {
+            const lvl = parseInt(card.dataset.level);
+            SyncManager.updateGameState({ current_level: lvl });
+            document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+        };
+    });
+
+    // Initial indicator position
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) setTimeout(() => updateTabIndicator(activeTab), 100);
+}
+
+// Admin Commands
 safeBind('role-admin', () => showScreen('admin-login-screen'));
-safeBind('role-participant', () => { getEl('role-selection').classList.add('hidden'); getEl('player-input-group').classList.remove('hidden'); });
-safeBind('login-btn', () => { if (getEl('admin-password').value === '9500') { state.userRole = 'ADMIN'; showScreen('admin-panel-screen'); } });
+safeBind('role-participant', () => {
+    getEl('role-selection').classList.add('hidden');
+    getEl('player-input-group').classList.remove('hidden');
+});
+safeBind('back-to-roles', () => {
+    getEl('player-input-group').classList.add('hidden');
+    getEl('role-selection').classList.remove('hidden');
+});
+safeBind('cancel-admin', () => showScreen('home-screen'));
+
+safeBind('login-btn', () => {
+    if (getEl('admin-password').value === '9500') {
+        state.userRole = 'ADMIN';
+        showScreen('admin-panel-screen');
+        initAdminTerminal();
+    } else {
+        getEl('admin-password').classList.add('wrong-auth');
+        setTimeout(() => getEl('admin-password').classList.remove('wrong-auth'), 500);
+    }
+});
+
 safeBind('start-battle', validateAndJoin);
+
+// Panel Controls
 safeBind('admin-start', () => SyncManager.updateGameState({ phase: 'playing', question_index: 0 }));
+safeBind('admin-show', () => SyncManager.updateGameState({ phase: 'show_answer' }));
+safeBind('admin-next', () => {
+    const nextIdx = state.global.questionIndex + 1;
+    const pool = getCurrentPool();
+    if (nextIdx < pool.length) {
+        SyncManager.updateGameState({ question_index: nextIdx, phase: 'playing' });
+    } else {
+        SyncManager.updateGameState({ phase: 'results' });
+    }
+});
 safeBind('admin-stop', () => SyncManager.updateGameState({ phase: 'lobby' }));
-safeBind('admin-next', () => SyncManager.updateGameState({ question_index: state.global.questionIndex + 1, phase: 'playing' }));
+safeBind('admin-reset', () => {
+    if (confirm("ARE YOU SURE? THIS PURGES ALL ARENA DATA.")) {
+        SyncManager.resetGame();
+    }
+});
+
+// Manual Add
+safeBind('add-player-btn', () => {
+    const name = getEl('manual-player-name').value.trim();
+    if (name) {
+        SyncManager.joinPlayer({
+            id: 'M-' + Date.now(),
+            name: name,
+            score: 0,
+            joinTime: Date.now(),
+            status: 'active'
+        });
+        getEl('manual-player-name').value = '';
+    }
+});
 
 // INITIALIZATION
 function initArena() {
     console.log("ARENA START...");
 
-    // Particles
+    // Particles (Minimal for performance)
     const ptn = getEl('particles-container');
     if (ptn) {
-        for (let i = 0; i < 30; i++) {
+        ptn.innerHTML = '';
+        for (let i = 0; i < 20; i++) {
             const p = document.createElement('div');
-            Object.assign(p.style, { position: 'absolute', left: Math.random() * 100 + '%', top: Math.random() * 100 + '%', width: '2px', height: '2px', background: '#00f2ff', boxShadow: '0 0 5px #00f2ff' });
+            Object.assign(p.style, {
+                position: 'absolute',
+                left: Math.random() * 100 + '%',
+                top: Math.random() * 100 + '%',
+                width: '2px',
+                height: '2px',
+                background: '#00f2ff',
+                boxShadow: '0 0 5px #00f2ff'
+            });
             ptn.appendChild(p);
         }
     }
@@ -307,14 +438,13 @@ function initArena() {
     // Supabase
     try { if (supabase) SyncManager.subscribe(); } catch (e) { }
 
-    // CRITICAL: FORCE REVEAL
+    // FORCE REVEAL
     setTimeout(() => {
         const loading = getEl('loading-screen');
         const app = getEl('app');
         if (app) app.style.display = 'block';
 
         if (loading) {
-            console.log("FADING OUT LOADING...");
             loading.classList.add('fade-out');
             setTimeout(() => {
                 loading.style.display = 'none';
