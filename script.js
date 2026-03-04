@@ -311,7 +311,7 @@ function initArena() {
         
         showScreen('home-screen');
         ArenaLog.info("ARENA READY");
-    }, 2500);
+    }, 4000);
 }
 
 // Start when DOM is ready
@@ -326,14 +326,14 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     setTimeout(initArena, 100);
 }
 
-// Safety net: Force show after 5 seconds no matter what
+// Safety net: Force show after 6 seconds no matter what
 setTimeout(function() {
     const loader = getEl('loading-screen');
     if (loader && (loader.style.display !== 'none')) {
         ArenaLog.warn("SAFETY NET TRIGGERED - Forcing app display");
         forceRevealArena();
     }
-}, 5000);
+}, 6000);
 
 // Expose globals for debugging and HTML onclick handlers
 window.SyncManager = SyncManager;
