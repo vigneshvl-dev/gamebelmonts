@@ -377,6 +377,10 @@ body {
     align-items: center;
     min-height: 100vh;
     width: 100%;
+    z-index: 999;
+    /* Ensure it is above all particles and backgrounds */
+    position: relative;
+    pointer-events: auto;
 }
 
 .screen {
