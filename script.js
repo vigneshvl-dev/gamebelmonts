@@ -7,7 +7,7 @@ const ArenaLog = {
     err: (msg) => console.error(`[ARENA ERROR] ${msg}`)
 };
 
-ArenaLog.info("SYSTEM SECURE: INITIALIZING KERNEL V2.1.0...");
+ArenaLog.info("SYSTEM SECURE: INITIALIZING KERNEL V2.1.1...");
 
 // 2. Supabase - Defensive Initialization
 let supabase = null;
@@ -87,8 +87,8 @@ function showScreen(screenId) {
     const target = getEl(screenId);
     if (target) {
         target.classList.add('active');
-        target.style.display = (screenId === 'home-screen' || screenId === 'admin-login-screen') ? 'flex' : 'flex';
-        target.style.opacity = '1';
+        target.style.display = 'flex';
+        setTimeout(() => target.style.opacity = '1', 10);
         state.currentScreen = screenId;
         updateUI();
     } else {
@@ -177,10 +177,14 @@ function initNavigation() {
         const target = e.target.closest('[id], .tab-btn, .level-card');
         if (!target) return;
         const id = target.id;
-        ArenaLog.info("CLICK: " + (id || target.className));
+        ArenaLog.info("CLICK DETECTED ON: " + (id || target.className || target.tagName));
 
-        if (id === 'role-admin') showScreen('admin-login-screen');
-        if (id === 'role-participant') {
+        if (id === 'role-admin' || target.closest('#role-admin')) {
+            ArenaLog.info("ADMIN ROLE SELECTED");
+            showScreen('admin-login-screen');
+        }
+        if (id === 'role-participant' || target.closest('#role-participant')) {
+            ArenaLog.info("PARTICIPANT ROLE SELECTED");
             getEl('role-selection')?.classList.add('hidden');
             getEl('player-input-group')?.classList.remove('hidden');
         }

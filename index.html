@@ -61,16 +61,12 @@
                     <p class="subtitle">Enter the Tech War Arena</p>
 
                     <div id="role-selection" class="role-selection">
-                        <div class="role-card glass admin" id="role-admin"
-                            onclick="console.log('INLINE ADMIN CLICK'); alert('ADMIN CLICKED!');"
-                            style="position: relative; z-index: 9999;">
+                        <div class="role-card glass admin" id="role-admin">
                             <span class="role-icon">⚡</span>
                             <h3>ADMIN</h3>
                             <p>Control the Battle</p>
                         </div>
-                        <div class="role-card glass participant" id="role-participant"
-                            onclick="console.log('INLINE PARTICIPANT CLICK'); alert('PARTICIPANT CLICKED!');"
-                            style="position: relative; z-index: 9999;">
+                        <div class="role-card glass participant" id="role-participant">
                             <span class="role-icon">⚔️</span>
                             <h3>PARTICIPANT</h3>
                             <p>Join the Fight</p>
@@ -256,27 +252,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js?v=2.1.0"></script>
-    <!-- GLOBAL EMERGENCY REVEAL -->
-    <script>
-        function forceRevealArena() {
-            var loader = document.getElementById('loading-screen');
-            var app = document.getElementById('app');
-            console.warn("Global Emergency Reveal: Forcing UI entry...");
-            if (loader) loader.style.display = 'none';
-            if (app) app.style.display = 'flex';
-            if (window.showScreen) window.showScreen('home-screen');
-            else {
-                var home = document.getElementById('home-screen');
-                if (home) { home.classList.add('active'); home.style.display = 'flex'; home.style.opacity = '1'; }
-            }
-        }
-        setTimeout(function () {
-            var loader = document.getElementById('loading-screen');
-            if (loader && (window.getComputedStyle(loader).display !== 'none' || loader.style.opacity !== '0')) {
-                forceRevealArena();
-            }
-        }, 6000);
-    </script>
 </body>
 
 </html>
