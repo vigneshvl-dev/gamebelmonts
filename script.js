@@ -57,7 +57,6 @@ const questionsBank = {
         { q: "Which of these is a bitwise operator in JavaScript?", a: ["&&", "||", "&", "!"], correct: 2 },
         { q: "How many bits are in 1 byte?", a: ["4", "8", "16", "32"], correct: 1 }
     ],
-    // ... (rest of the questionsbank is kept internal for brevity)
     2: [
         { q: "Which component is known as the 'brain' of the computer?", a: ["RAM", "GPU", "CPU", "SSD"], correct: 2 },
         { q: "What type of memory is volatile and lost when power is off?", a: ["ROM", "RAM", "HDD", "FLASH"], correct: 1 },
