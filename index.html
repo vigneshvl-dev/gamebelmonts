@@ -117,86 +117,207 @@
 
         <!-- Admin Panel Screen -->
         <section id="admin-panel-screen" class="screen">
-            <div class="admin-panel glass">
-                <nav class="admin-tabs">
-                    <button class="tab-btn active" data-tab="tab-control">⚡ CONTROL</button>
-                    <button class="tab-btn" data-tab="tab-players">👥 PLAYERS</button>
-                    <button class="tab-btn" data-tab="tab-scores">🏆 SCORES</button>
-                    <div class="tab-indicator"></div>
-                </nav>
+            <div class="admin-wrapper">
+                <!-- 1. Sidebar Menu -->
+                <aside class="admin-sidebar glass">
+                    <div class="sidebar-header">
+                        <h2>ADMIN CORE</h2>
+                    </div>
+                    <nav class="sidebar-nav">
+                        <button class="sidebar-btn active" data-tab="tab-dashboard">🏠 Dashboard</button>
+                        <button class="sidebar-btn" data-tab="tab-players">👥 Players</button>
+                        <button class="sidebar-btn" data-tab="tab-game">🎮 Game Control</button>
+                        <button class="sidebar-btn" data-tab="tab-questions">📝 Questions</button>
+                        <button class="sidebar-btn" data-tab="tab-leaderboard">📊 Leaderboard</button>
+                        <button class="sidebar-btn" data-tab="tab-settings">⚙ Settings</button>
+                    </nav>
+                    <div class="sidebar-footer">
+                        <button id="admin-logout" class="sidebar-btn danger-text">🚪 Logout</button>
+                    </div>
+                </aside>
 
-                <div class="admin-content">
-                    <div id="tab-control" class="tab-pane active">
-                        <section class="panel-section">
-                            <h3 class="panel-label">ARENA LEVEL SELECTOR</h3>
-                            <div class="level-grid">
-                                <div class="level-card glass" data-level="1">
-                                    <span class="lvl-num">LV 1</span>
-                                    <h4>Binary Challenge</h4>
-                                </div>
-                                <div class="level-card glass" data-level="2">
-                                    <span class="lvl-num">LV 2</span>
-                                    <h4>Hardware Builder</h4>
-                                </div>
-                                <div class="level-card glass" data-level="3">
-                                    <span class="lvl-num">LV 3</span>
-                                    <h4>Stack & Queue Battle</h4>
-                                </div>
-                                <div class="level-card glass" data-level="4">
-                                    <span class="lvl-num">LV 4</span>
-                                    <h4>Network Defender</h4>
-                                </div>
-                                <div class="level-card glass" data-level="5">
-                                    <span class="lvl-num">LV 5</span>
-                                    <h4>Tech Escape Room</h4>
-                                </div>
+                <div class="admin-main">
+                    <!-- 2. Dashboard Section -->
+                    <div id="tab-dashboard" class="tab-pane active">
+                        <h2 class="admin-title">Dashboard Overview</h2>
+                        <div class="dashboard-cards">
+                            <div class="stat-card glass">
+                                <h3>Total Players</h3>
+                                <p id="stat-total-players" class="stat-value">0</p>
                             </div>
-                        </section>
-
-                        <section class="panel-section">
-                            <h3 class="panel-label">BATTLE COMMANDS</h3>
-                            <div class="command-group">
-                                <button id="admin-start" class="neon-button">▶ START LEVEL</button>
-                                <button id="admin-show" class="neon-button purple">📢 SHOW ANSWER</button>
-                                <button id="admin-next" class="neon-button">➡ NEXT QUESTION</button>
-                                <button id="admin-stop" class="neon-button red">⏹ STOP</button>
+                            <div class="stat-card glass">
+                                <h3>Current Level</h3>
+                                <p id="stat-current-level" class="stat-value">1</p>
                             </div>
-                            <div class="status-monitor">
-                                STATUS: <span id="status-badge" class="badge">STANDBY</span>
-                                LEVEL: <span id="active-level-label">NONE</span>
+                            <div class="stat-card glass">
+                                <h3>Game Status</h3>
+                                <p id="stat-game-status" class="stat-value standby">WAITING</p>
                             </div>
-                        </section>
-
-                        <section class="panel-section danger">
-                            <h3 class="panel-label">DANGER ZONE</h3>
-                            <button id="admin-reset" class="neon-button red outline">RESET ENTIRE GAME</button>
-                        </section>
+                            <div class="stat-card glass">
+                                <h3>Time Remaining</h3>
+                                <p id="stat-time-remaining" class="stat-value">--:--</p>
+                            </div>
+                            <div class="stat-card glass">
+                                <h3>Highest Score</h3>
+                                <p id="stat-highest-score" class="stat-value">0</p>
+                            </div>
+                            <div class="stat-card glass">
+                                <h3>Total Questions</h3>
+                                <p id="stat-total-questions" class="stat-value">15</p>
+                            </div>
+                        </div>
                     </div>
 
+                    <!-- 3. Players Management -->
                     <div id="tab-players" class="tab-pane">
-                        <div class="add-player-box">
+                        <h2 class="admin-title">Player Management</h2>
+                        <div class="control-bar glass">
                             <input type="text" id="manual-player-name" placeholder="NEW CODENAME">
                             <button id="add-player-btn" class="neon-button small">ADD UNIT</button>
                         </div>
-                        <div class="player-roster"
-                            style="max-height: 400px; overflow-y: auto; border: 1px solid var(--glass-border);">
+                        <div class="table-container glass">
                             <table class="admin-table">
                                 <thead>
                                     <tr>
-                                        <th>RANK</th>
-                                        <th>NAME</th>
-                                        <th>SCORE</th>
-                                        <th>ACTION</th>
+                                        <th>Name</th>
+                                        <th>Score</th>
+                                        <th>Level</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
-                                <tbody id="admin-player-list"></tbody>
+                                <tbody id="admin-player-list">
+                                    <!-- Populated by JS -->
+                                </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div id="tab-scores" class="tab-pane">
-                        <div id="admin-leaderboard" class="leaderboard-visuals"></div>
+                    <!-- 4. Game Control Panel -->
+                    <div id="tab-game" class="tab-pane">
+                        <h2 class="admin-title">Game Control Panel</h2>
+                        <div class="game-controls glass">
+                            <button id="ctrl-start" class="neon-button">▶ Start Game</button>
+                            <button id="ctrl-pause" class="neon-button purple">⏸ Pause Game</button>
+                            <button id="ctrl-restart" class="neon-button">🔁 Restart Level</button>
+                            <button id="ctrl-skip" class="neon-button">⏭ Skip Level</button>
+                            <button id="ctrl-end" class="neon-button red">⏹ End Game</button>
+                        </div>
+
+                        <h3 class="admin-subtitle">Level Override</h3>
+                        <div class="level-grid">
+                            <div class="level-card glass" data-level="1">
+                                <span class="lvl-num">LV 1</span>
+                                <h4>Binary Challenge</h4>
+                            </div>
+                            <div class="level-card glass" data-level="2">
+                                <span class="lvl-num">LV 2</span>
+                                <h4>Hardware Builder</h4>
+                            </div>
+                            <div class="level-card glass" data-level="3">
+                                <span class="lvl-num">LV 3</span>
+                                <h4>Stack & Queue Battle</h4>
+                            </div>
+                            <div class="level-card glass" data-level="4">
+                                <span class="lvl-num">LV 4</span>
+                                <h4>Network Defender</h4>
+                            </div>
+                            <div class="level-card glass" data-level="5">
+                                <span class="lvl-num">LV 5</span>
+                                <h4>Tech Escape Room</h4>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- 5. Question Control -->
+                    <div id="tab-questions" class="tab-pane">
+                        <h2 class="admin-title">Question Control</h2>
+                        <div class="questions-panel glass">
+                            <div class="form-group">
+                                <label>Assign Level</label>
+                                <select id="q-level" class="admin-input">
+                                    <option value="1">Level 1 - Binary Challenge</option>
+                                    <option value="2">Level 2 - Hardware Builder</option>
+                                    <option value="3">Level 3 - Stack & Queue Battle</option>
+                                    <option value="4">Level 4 - Network Defender</option>
+                                    <option value="5">Level 5 - Tech Escape Room</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Question Type</label>
+                                <select id="q-type" class="admin-input">
+                                    <option value="mcq">Multiple Choice</option>
+                                    <option value="debug">Debug Code</option>
+                                    <option value="dnd">Drag & Drop</option>
+                                    <option value="tf">True / False</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Question Text</label>
+                                <textarea id="q-text" class="admin-input" rows="3"
+                                    placeholder="Enter question..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button class="neon-button small">Add New Question</button>
+                                <button class="neon-button small purple">Edit Selected</button>
+                                <button class="neon-button small red">Delete Question</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Live Leaderboard -->
+                    <div id="tab-leaderboard" class="tab-pane">
+                        <h2 class="admin-title">Live Leaderboard</h2>
+                        <div class="table-container glass">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Player Name</th>
+                                        <th>Score</th>
+                                        <th>Correct Answers</th>
+                                        <th>Time Taken</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="live-leaderboard-list">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 7. Settings Section -->
+                    <div id="tab-settings" class="tab-pane">
+                        <h2 class="admin-title">Game Settings</h2>
+                        <div class="settings-grid glass">
+                            <div class="setting-item">
+                                <label>Time per Question (sec)</label>
+                                <input type="number" class="admin-input" value="30">
+                            </div>
+                            <div class="setting-item">
+                                <label>Total Levels</label>
+                                <input type="number" class="admin-input" value="5">
+                            </div>
+                            <div class="setting-item">
+                                <label>Points per Correct Answer</label>
+                                <input type="number" class="admin-input" value="100">
+                            </div>
+                            <div class="setting-item">
+                                <label>Lives per Player</label>
+                                <input type="number" class="admin-input" value="3">
+                            </div>
+                            <div class="setting-item checkbox">
+                                <label>Enable Rapid Fire Mode</label>
+                                <input type="checkbox" id="setting-rapid-fire">
+                            </div>
+                            <div class="setting-item checkbox">
+                                <label>Sound FX</label>
+                                <input type="checkbox" id="setting-sound" checked>
+                            </div>
+                            <button class="neon-button" style="grid-column: 1 / -1; margin-top: 1rem;">Save
+                                Settings</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
