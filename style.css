@@ -112,12 +112,16 @@ body {
 
 #loading-screen.fade-out {
     opacity: 0;
-    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 1s ease;
 }
 
 .loading-image {
     display: block !important;
     opacity: 1 !important;
+    visibility: visible !important;
+    max-width: 250px;
+    margin: 0 auto 20px;
 }
 
 .loading-bar-container {
