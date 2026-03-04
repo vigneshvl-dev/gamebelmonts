@@ -1088,10 +1088,11 @@ input:focus {
     align-items: center;
     justify-content: center;
     gap: 60px;
-    width: 95%;
+    width: 100%; /* Ensure full width */
     max-width: 1400px;
-    margin: 0 auto;
+    margin: 0 auto; /* Center horizontally */
     padding: 20px;
+    height: 100vh; /* Center vertically */
 }
 
 .hero {
