@@ -318,6 +318,9 @@ function initArena() {
         ArenaLog.info("ARENA READY");
     }, 4000);
 
+    // Try Supabase init again (in case CDN loaded after initial attempt)
+    initSupabase();
+
     // Subscribe to Supabase if available (after setTimeout is registered)
     try {
         if (supabase) SyncManager.subscribe();
