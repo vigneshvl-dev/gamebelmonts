@@ -361,6 +361,7 @@ setTimeout(() => {
 // Add event listener to ensure forceRevealArena works
 const forceButton = document.getElementById('force-enter-btn');
 if (forceButton) {
+    forceButton.style.display = 'block'; // Ensure the button is visible
     forceButton.addEventListener('click', () => {
         ArenaLog.info("DEBUG: Force Override button clicked.");
         forceRevealArena();
