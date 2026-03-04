@@ -50,7 +50,23 @@
             if (app) {
                 app.style.display = 'flex';
             }
-            if (typeof showScreen === 'function') showScreen('home-screen');
+            if (typeof showScreen === 'function') {
+                showScreen('home-screen');
+            } else {
+                // Fallback: show home-screen directly without script.js
+                var screens = document.querySelectorAll('.screen');
+                for (var i = 0; i < screens.length; i++) {
+                    screens[i].classList.remove('active');
+                    screens[i].style.display = 'none';
+                    screens[i].style.opacity = '';
+                }
+                var home = document.getElementById('home-screen');
+                if (home) {
+                    home.classList.add('active');
+                    home.style.display = 'flex';
+                    home.style.opacity = '1';
+                }
+            }
         }
     </script>
     <!-- Background & FX -->
@@ -376,8 +392,8 @@
         </section>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js?v=2.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer onerror="console.warn('Supabase CDN failed to load')"></script>
+    <script src="script.js?v=2.3" defer></script>
 </body>
 
 </html>

@@ -11,18 +11,26 @@ ArenaLog.info("SYSTEM SECURE: INITIALIZING KERNEL V2.1.1...");
 
 // 2. Supabase - Defensive Initialization
 let supabase = null;
-try {
-    const supabaseUrl = 'https://loousnbpmmjrwnfwkqxs.supabase.co';
-    const supabaseKey = 'sb_publishable_SBrp-zgLSnJAQb8_XAyECQ_Vj8zF5kN';
-    if (window.supabase) {
-        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        ArenaLog.info("SUPABASE: INSTANCE ACQUIRED");
-    } else {
-        ArenaLog.warn("SUPABASE: Library not loaded, running in offline mode");
+const SUPABASE_URL = 'https://loousnbpmmjrwnfwkqxs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_SBrp-zgLSnJAQb8_XAyECQ_Vj8zF5kN';
+
+function initSupabase() {
+    if (supabase) return supabase;
+    try {
+        if (window.supabase && window.supabase.createClient) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            ArenaLog.info("SUPABASE: INSTANCE ACQUIRED");
+        } else {
+            ArenaLog.warn("SUPABASE: Library not loaded, running in offline mode");
+        }
+    } catch (e) {
+        ArenaLog.err("SUPABASE: INITIALIZATION ERROR - " + e.message);
     }
-} catch (e) {
-    ArenaLog.err("SUPABASE: FATAL INITIALIZATION ERROR - " + e.message);
+    return supabase;
 }
+
+// Try to init immediately (may succeed if loaded with defer)
+initSupabase();
 
 // 3. Global State
 const state = {
@@ -293,10 +301,7 @@ function initArena() {
     // Initialize click handlers
     initNavigation();
     
-    // Subscribe to Supabase if available
-    if (supabase) SyncManager.subscribe();
-
-    // Hide loading screen and show app after short delay
+    // Hide loading screen and show app after short delay (MUST be before subscribe)
     setTimeout(function() {
         ArenaLog.info("FINISHING STARTUP...");
         const loader = getEl('loading-screen');
@@ -312,6 +317,13 @@ function initArena() {
         showScreen('home-screen');
         ArenaLog.info("ARENA READY");
     }, 4000);
+
+    // Subscribe to Supabase if available (after setTimeout is registered)
+    try {
+        if (supabase) SyncManager.subscribe();
+    } catch (e) {
+        ArenaLog.err("Supabase subscribe failed: " + e.message);
+    }
 }
 
 // Start when DOM is ready
