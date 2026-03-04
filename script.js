@@ -1,9 +1,21 @@
 // --- BELMONTS: TECH ARENA - Core Logic ---
 
-// Supabase Configuration
-const supabaseUrl = 'https://loousnbpmmjrwnfwkqxs.supabase.co';
-const supabaseKey = 'sb_publishable_SBrp-zgLSnJAQb8_XAyECQ_Vj8zF5kN';
-const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+window.onerror = function (msg, url, line) {
+    console.error("GLOBAL ERROR: " + msg + " at " + url + ":" + line);
+};
+
+let supabase = null;
+try {
+    const supabaseUrl = 'https://loousnbpmmjrwnfwkqxs.supabase.co';
+    const supabaseKey = 'sb_publishable_SBrp-zgLSnJAQb8_XAyECQ_Vj8zF5kN';
+    if (window.supabase) {
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    } else {
+        console.warn("Supabase SDK not found.");
+    }
+} catch (e) {
+    console.error("Supabase Init Error:", e);
+}
 
 // Core State
 const state = {
@@ -30,33 +42,38 @@ const levels = [
     { id: 5, name: "Tech Escape Room", color: "#ffd700" }
 ];
 
-const questions = [
-    {
-        q: "Which protocol is used for secure communication over the internet?",
-        a: ["HTTP", "HTTPS", "FTP", "SMTP"],
-        correct: 1
-    },
-    {
-        q: "What does CSS stand for?",
-        a: ["Creative Style Sheets", "Computer Style Sheets", "Cascading Style Sheets", "Colorful Style Sheets"],
-        correct: 2
-    },
-    {
-        q: "Which language is primarily used for Android App development?",
-        a: ["Kotlin", "Swift", "C#", "PHP"],
-        correct: 0
-    },
-    {
-        q: "What is the primary function of a Load Balancer?",
-        a: ["Encrypt Data", "Store Cookies", "Distribute Traffic", "Compile Code"],
-        correct: 2
-    },
-    {
-        q: "Which data structure follows LIFO (Last In First Out)?",
-        a: ["Queue", "Stack", "Linked List", "Tree"],
-        correct: 1
-    }
-];
+const questionsBank = {
+    1: [ // Binary Challenge
+        { q: "What is the decimal value of the binary number 1010?", a: ["8", "10", "12", "14"], correct: 1 },
+        { q: "Which of these is a bitwise operator in JavaScript?", a: ["&&", "||", "&", "!"], correct: 2 },
+        { q: "How many bits are in 1 byte?", a: ["4", "8", "16", "32"], correct: 1 }
+    ],
+    2: [ // Hardware Builder
+        { q: "Which component is known as the 'brain' of the computer?", a: ["RAM", "GPU", "CPU", "SSD"], correct: 2 },
+        { q: "What type of memory is volatile and lost when power is off?", a: ["ROM", "RAM", "HDD", "FLASH"], correct: 1 },
+        { q: "Which port is commonly used for high-definition video and audio?", a: ["VGA", "USB-A", "HDMI", "PS/2"], correct: 2 }
+    ],
+    3: [ // Stack & Queue Battle
+        { q: "Which data structure follows the FIFO (First In First Out) principle?", a: ["Stack", "Queue", "Tree", "Graph"], correct: 1 },
+        { q: "What is the operation to add an element to a Stack?", a: ["Pop", "Push", "Enqueue", "Dequeue"], correct: 1 },
+        { q: "In a Queue, where does 'Dequeue' happen?", a: ["Front", "Back", "Middle", "Random"], correct: 0 }
+    ],
+    4: [ // Network Defender
+        { q: "Which port is the default for HTTPS traffic?", a: ["80", "21", "25", "443"], correct: 3 },
+        { q: "What does DNS stand for?", a: ["Data Network System", "Domain Name System", "Digital Node Service", "Direct Net Signal"], correct: 1 },
+        { q: "Which layer of the OSI model handles routing?", a: ["Physical", "Data Link", "Network", "Transport"], correct: 2 }
+    ],
+    5: [ // Tech Escape Room
+        { q: "What is the time complexity of a Binary Search algorithm?", a: ["O(n)", "O(n²)", "O(log n)", "O(1)"], correct: 2 },
+        { q: "Which keyword is used to create a constant variable in ES6?", a: ["var", "let", "const", "static"], correct: 2 },
+        { q: "What is the result of typeof null in JavaScript?", a: ["'null'", "'undefined'", "'object'", "'number'"], correct: 2 }
+    ]
+};
+
+// Helper to get current questions set
+function getCurrentPool() {
+    return questionsBank[state.global.currentLevel] || [];
+}
 
 // Supabase Interaction Layer
 const SyncManager = {
@@ -95,13 +112,16 @@ const SyncManager = {
     },
 
     subscribe() {
-        if (!supabase) return;
+        if (!supabase) {
+            console.error("Supabase client not initialized. Check API keys.");
+            return;
+        }
 
         // Subscribe to Players
         supabase
             .channel('public:players')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
-                this.loadPlayers();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => {
+                SyncManager.loadPlayers();
             })
             .subscribe();
 
@@ -120,37 +140,47 @@ const SyncManager = {
             .subscribe();
 
         // Initial load
-        this.loadPlayers();
-        this.loadGameState();
+        SyncManager.loadPlayers();
+        SyncManager.loadGameState();
     },
 
     async loadPlayers() {
-        const { data, error } = await supabase.from('players').select('*').order('joinTime', { ascending: true });
-        if (!error && data) {
-            state.global.players = data;
+        if (!supabase) return;
+        try {
+            const { data, error } = await supabase.from('players').select('*').order('joinTime', { ascending: true });
+            if (!error && data) {
+                state.global.players = data;
 
-            // Check if current player is kicked
-            if (state.playerId && state.userRole === 'PARTICIPANT') {
-                const me = data.find(p => p.id === state.playerId);
-                if (!me || me.status === 'kicked') {
-                    state.playerName = '';
-                    state.playerId = '';
-                    state.userRole = null;
-                    location.reload();
-                    return;
+                // Check if current player is kicked
+                if (state.playerId && state.userRole === 'PARTICIPANT') {
+                    const me = data.find(p => p.id === state.playerId);
+                    if (!me || me.status === 'kicked') {
+                        state.playerName = '';
+                        state.playerId = '';
+                        state.userRole = null;
+                        location.reload();
+                        return;
+                    }
                 }
+                updateUI();
             }
-            updateUI();
+        } catch (e) {
+            console.error("Load Players Failed:", e);
         }
     },
 
     async loadGameState() {
-        const { data, error } = await supabase.from('game_state').select('*').eq('id', 'global').single();
-        if (!error && data) {
-            state.global.phase = data.phase;
-            state.global.currentLevel = data.current_level;
-            state.global.questionIndex = data.question_index;
-            updateUI();
+        if (!supabase) return;
+        try {
+            const { data, error } = await supabase.from('game_state').select('*').eq('id', 'global').single();
+            if (!error && data) {
+                state.global.phase = data.phase;
+                state.global.currentLevel = data.current_level;
+                state.global.questionIndex = data.question_index;
+                updateUI();
+            }
+        } catch (e) {
+            console.error("Load Game State Failed:", e);
         }
     }
 };
@@ -218,16 +248,17 @@ function validateAndJoin() {
         return;
     }
 
-    // Duplicate Check — load from storage without side effects
-    const stored = localStorage.getItem(StorageManager.KEY);
+    // Duplicate Check — load from local storage safely (optional fallback)
+    const stored = localStorage.getItem('BELMONTS_GAME_STATE_V2');
     if (stored) {
-        const parsed = JSON.parse(stored);
-        const isDuplicate = parsed.players.some(p => p.name.toLowerCase() === name.toLowerCase() && p.status === 'active');
-        if (isDuplicate) {
-            showJoinError('NAME ALREADY TAKEN BY ANOTHER PIRATE');
-            return;
-        }
-        state.global = parsed; // safe to update now
+        try {
+            const parsed = JSON.parse(stored);
+            const isDuplicate = parsed.players && parsed.players.some(p => p.name.toLowerCase() === name.toLowerCase() && p.status === 'active');
+            if (isDuplicate) {
+                showJoinError('NAME ALREADY TAKEN BY ANOTHER PIRATE');
+                return;
+            }
+        } catch (e) { }
     }
 
     // Success - Create Participant
@@ -309,7 +340,8 @@ document.getElementById('admin-show').onclick = () => {
 };
 
 document.getElementById('admin-next').onclick = () => {
-    if (state.global.questionIndex < questions.length - 1) {
+    const pool = getCurrentPool();
+    if (state.global.questionIndex < pool.length - 1) {
         SyncManager.updateGameState({
             question_index: state.global.questionIndex + 1,
             phase: 'playing'
@@ -464,7 +496,11 @@ let localTimerInterval = null;
 
 function initLocalQuestion() {
     const g = state.global;
-    const q = questions[g.questionIndex];
+    const pool = getCurrentPool();
+    const q = pool[g.questionIndex];
+
+    if (!q) return;
+
     answerGrid.dataset.qIndex = g.questionIndex;
     answerGrid.dataset.answered = 'false';
 
@@ -503,12 +539,14 @@ function submitAnswer(idx) {
     clearInterval(localTimerInterval);
 
     const g = state.global;
-    const q = questions[g.questionIndex];
+    const pool = getCurrentPool();
+    const q = pool[g.questionIndex];
     const buttons = answerGrid.querySelectorAll('.answer-btn');
 
-    // Save answer in global array
+    // Save answer in global array (local state update)
     const me = state.global.players.find(p => p.id === state.playerId);
     if (me) {
+        if (!me.answers) me.answers = [];
         me.answers[g.questionIndex] = idx;
     }
 
@@ -578,27 +616,35 @@ document.getElementById('play-again').onclick = () => {
 };
 
 function initLoading() {
+    console.log("Initializing Arena...");
     initParticles();
 
-    // Initialize Supabase Sync
-    SyncManager.subscribe();
+    // Silently attempt DB sync
+    try {
+        if (supabase) SyncManager.subscribe();
+    } catch (e) {
+        console.warn("Supabase Sync skipped:", e);
+    }
 
-    setTimeout(() => {
-        const loadingImg = document.querySelector('.loading-image');
-        if (loadingImg) {
-            if (loadingImg.complete) {
-                loadingImg.classList.add('loaded');
-            } else {
-                loadingImg.onload = () => loadingImg.classList.add('loaded');
-            }
+    // ULTRA Robust Transition
+    const revealGame = () => {
+        const loading = document.getElementById('loading-screen');
+        if (loading) {
+            loading.classList.add('fade-out');
+            // Hard hide after fade duration
+            setTimeout(() => {
+                loading.style.display = 'none';
+                showScreen('home-screen');
+            }, 1000);
         }
+    };
 
-        document.getElementById('loading-screen').classList.add('fade-out');
-        setTimeout(() => {
-            showScreen('home-screen');
-        }, 1000);
-    }, 4000);
+    // Transition after 3 seconds
+    setTimeout(revealGame, 3000);
 }
+
+// Immediate call
+initLoading();
 
 function initParticles() {
     const container = document.getElementById('particles-container');
@@ -614,6 +660,6 @@ function initParticles() {
     }
 }
 
-initLoading();
+window.onload = initLoading;
 
 
