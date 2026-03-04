@@ -674,8 +674,18 @@ input:focus {
 }
 
 .player-grid-list {
-    max-height: 350px;
+    height: 450px;
     overflow-y: auto;
+    padding-right: 10px;
+}
+
+.player-grid-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.player-grid-list::-webkit-scrollbar-thumb {
+    background: var(--neon-blue);
+    border-radius: 2px;
 }
 
 .player-entry {

@@ -1,5 +1,10 @@
 // --- BELMONTS: TECH ARENA - Core Logic ---
 
+// Supabase Configuration
+const supabaseUrl = 'https://loousnbpmmjrwnfwkqxs.supabase.co';
+const supabaseKey = 'loousnbpmmjrwnfwkqxs'; // NOTE: This project ID usually needs the long Anon Key for production
+const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+
 // Core State
 const state = {
     playerName: '',
@@ -53,42 +58,100 @@ const questions = [
     }
 ];
 
-// Storage Manager
-const StorageManager = {
-    KEY: 'BELMONTS_GAME_STATE_V2',
-
-    save() {
-        state.global.lastUpdate = Date.now();
-        localStorage.setItem(this.KEY, JSON.stringify(state.global));
+// Supabase Interaction Layer
+const SyncManager = {
+    async joinPlayer(player) {
+        if (!supabase) return;
+        const { error } = await supabase.from('players').upsert([player]);
+        if (error) console.error("Join error:", error);
     },
 
-    load() {
-        const data = localStorage.getItem(this.KEY);
-        if (data) {
-            const parsed = JSON.parse(data);
+    async updateScore(playerId, points) {
+        if (!supabase) return;
+        const p = state.global.players.find(p => p.id === playerId);
+        if (!p) return;
+        const newScore = p.score + points;
+        const { error } = await supabase.from('players').update({ score: newScore }).eq('id', playerId);
+        if (error) console.error("Update score error:", error);
+    },
 
-            // Only check kick/removal AFTER player has fully joined (has a valid playerId)
+    async updateGameState(updates) {
+        if (!supabase) return;
+        const { error } = await supabase.from('game_state').upsert([{ id: 'global', ...updates }]);
+        if (error) console.error("Update game state error:", error);
+    },
+
+    async kickPlayer(id) {
+        if (!supabase) return;
+        await supabase.from('players').update({ status: 'kicked' }).eq('id', id);
+    },
+
+    async resetGame() {
+        if (!supabase) return;
+        // Reset players
+        await supabase.from('players').update({ score: 0, status: 'active', answers: [] }).neq('id', 'temp');
+        // Reset state
+        await this.updateGameState({ phase: 'lobby', current_level: 1, question_index: 0 });
+    },
+
+    subscribe() {
+        if (!supabase) return;
+
+        // Subscribe to Players
+        supabase
+            .channel('public:players')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
+                this.loadPlayers();
+            })
+            .subscribe();
+
+        // Subscribe to Game State
+        supabase
+            .channel('public:game_state')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state' }, payload => {
+                const data = payload.new;
+                if (data && data.id === 'global') {
+                    state.global.phase = data.phase;
+                    state.global.currentLevel = data.current_level;
+                    state.global.questionIndex = data.question_index;
+                    updateUI();
+                }
+            })
+            .subscribe();
+
+        // Initial load
+        this.loadPlayers();
+        this.loadGameState();
+    },
+
+    async loadPlayers() {
+        const { data, error } = await supabase.from('players').select('*').order('joinTime', { ascending: true });
+        if (!error && data) {
+            state.global.players = data;
+
+            // Check if current player is kicked
             if (state.playerId && state.userRole === 'PARTICIPANT') {
-                const me = parsed.players.find(p => p.id === state.playerId);
+                const me = data.find(p => p.id === state.playerId);
                 if (!me || me.status === 'kicked') {
-                    // Reset to home if kicked or removed
                     state.playerName = '';
                     state.playerId = '';
                     state.userRole = null;
                     location.reload();
                     return;
                 }
-                // Sync scores from global to prevent manipulation if we were keeping local state
             }
-            state.global = parsed;
-        } else {
-            this.save();
+            updateUI();
         }
     },
 
-    sync() {
-        this.load();
-        updateUI();
+    async loadGameState() {
+        const { data, error } = await supabase.from('game_state').select('*').eq('id', 'global').single();
+        if (!error && data) {
+            state.global.phase = data.phase;
+            state.global.currentLevel = data.current_level;
+            state.global.questionIndex = data.question_index;
+            updateUI();
+        }
     }
 };
 
@@ -181,8 +244,7 @@ function validateAndJoin() {
         status: 'active'
     };
 
-    state.global.players.push(newPlayer);
-    StorageManager.save();
+    SyncManager.joinPlayer(newPlayer);
     showScreen('lobby-screen');
 }
 
@@ -229,50 +291,41 @@ function updateTabIndicator() {
 
 levelCards.forEach(card => {
     card.onclick = () => {
-        state.global.currentLevel = parseInt(card.dataset.level);
-        state.global.phase = 'lobby';
-        state.global.questionIndex = 0;
-        StorageManager.save();
-        updateUI();
+        const level = parseInt(card.dataset.level);
+        SyncManager.updateGameState({
+            current_level: level,
+            phase: 'lobby',
+            question_index: 0
+        });
     };
 });
 
 document.getElementById('admin-start').onclick = () => {
-    state.global.phase = 'playing';
-    state.global.questionIndex = 0;
-    StorageManager.save();
+    SyncManager.updateGameState({ phase: 'playing', question_index: 0 });
 };
 
 document.getElementById('admin-show').onclick = () => {
-    state.global.phase = 'show_answer';
-    StorageManager.save();
+    SyncManager.updateGameState({ phase: 'show_answer' });
 };
 
 document.getElementById('admin-next').onclick = () => {
     if (state.global.questionIndex < questions.length - 1) {
-        state.global.questionIndex++;
-        state.global.phase = 'playing';
+        SyncManager.updateGameState({
+            question_index: state.global.questionIndex + 1,
+            phase: 'playing'
+        });
     } else {
-        state.global.phase = 'results';
+        SyncManager.updateGameState({ phase: 'results' });
     }
-    StorageManager.save();
 };
 
 document.getElementById('admin-stop').onclick = () => {
-    state.global.phase = 'lobby';
-    StorageManager.save();
+    SyncManager.updateGameState({ phase: 'lobby' });
 };
 
 document.getElementById('admin-reset').onclick = () => {
     if (confirm('REBOOT SYSTEM: Clear all scores and reset game?')) {
-        state.global.players.forEach(p => {
-            p.score = 0;
-            p.answers = [];
-            p.status = 'active'; // Re-activate everyone on reset
-        });
-        state.global.phase = 'lobby';
-        state.global.questionIndex = 0;
-        StorageManager.save();
+        SyncManager.resetGame();
     }
 };
 
@@ -280,32 +333,22 @@ document.getElementById('add-player-btn').onclick = () => {
     const input = document.getElementById('manual-player-name');
     const name = input.value.trim();
     if (name) {
-        addPlayerToGlobal(name);
+        SyncManager.joinPlayer({
+            id: 'M-' + Date.now(),
+            name,
+            score: 0,
+            joinTime: Date.now(),
+            answers: [],
+            status: 'active'
+        });
         input.value = '';
     }
 };
 
 function kickPlayer(id) {
-    const p = state.global.players.find(p => p.id === id);
-    if (p) {
-        p.status = 'kicked';
-        StorageManager.save();
-    }
+    SyncManager.kickPlayer(id);
 }
-window.kickPlayer = kickPlayer; // Make accessible to inline onclick
-
-function addPlayerToGlobal(name) {
-    const id = 'M-' + Date.now();
-    state.global.players.push({
-        id,
-        name,
-        score: 0,
-        joinTime: Date.now(),
-        answers: [],
-        status: 'active'
-    });
-    StorageManager.save();
-}
+window.kickPlayer = kickPlayer;
 
 // --- CORE UI UPDATES ---
 function updateUI() {
@@ -472,26 +515,14 @@ function submitAnswer(idx) {
     if (idx === q.correct) {
         if (idx !== -1) buttons[idx].classList.add('correct');
         const points = Math.ceil(state.currentTimeLeft * 10);
-        updateLocalPlayerScore(points);
+        SyncManager.updateScore(state.playerId, points);
     } else {
         if (idx !== -1) buttons[idx].classList.add('wrong');
         buttons[q.correct].classList.add('correct');
     }
-    StorageManager.save();
 }
 
-function updateLocalPlayerScore(points) {
-    const p = state.global.players.find(p => p.id === state.playerId);
-    if (p) {
-        p.score += points;
-        updateScoreDisplay();
-    }
-}
-
-function updateScoreDisplay() {
-    const me = state.global.players.find(p => p.id === state.playerId);
-    if (me) scoreDisplay.innerText = me.score;
-}
+// removed local update functions, using SyncManager instead
 
 function showResults() {
     showScreen('result-screen');
@@ -548,10 +579,9 @@ document.getElementById('play-again').onclick = () => {
 
 function initLoading() {
     initParticles();
-    StorageManager.load();
 
-    // Polling sync (2 seconds as requested)
-    setInterval(() => StorageManager.sync(), 2000);
+    // Initialize Supabase Sync
+    SyncManager.subscribe();
 
     setTimeout(() => {
         const loadingImg = document.querySelector('.loading-image');
