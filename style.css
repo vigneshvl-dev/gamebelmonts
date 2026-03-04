@@ -107,7 +107,7 @@ body {
     align-items: center;
     transition: opacity 1s ease-out, visibility 1s;
     max-width: none;
-    /* Override .screen max-width */
+    /* Removed animation: fadeIn 0.5s ease-out; for instant feedback */
 }
 
 #loading-screen.fade-out {
@@ -206,8 +206,14 @@ body {
 .loading-image {
     width: 250px;
     height: auto;
-    filter: drop-shadow(0 0 20px rgba(188, 19, 254, 0.4));
+    filter: drop-shadow(0 0 15px rgba(188, 19, 254, 0.6));
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
     animation: imgGlitch 4s infinite;
+}
+
+.loading-image.loaded {
+    opacity: 1;
 }
 
 .home-banner-img {

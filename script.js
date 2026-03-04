@@ -554,6 +554,15 @@ function initLoading() {
     setInterval(() => StorageManager.sync(), 2000);
 
     setTimeout(() => {
+        const loadingImg = document.querySelector('.loading-image');
+        if (loadingImg) {
+            if (loadingImg.complete) {
+                loadingImg.classList.add('loaded');
+            } else {
+                loadingImg.onload = () => loadingImg.classList.add('loaded');
+            }
+        }
+
         document.getElementById('loading-screen').classList.add('fade-out');
         setTimeout(() => {
             showScreen('home-screen');
