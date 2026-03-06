@@ -1,3 +1,86 @@
+// --- ADMIN PANEL LOGIC ---
+const ADMIN_PASSWORD = '9500'; // Change as needed
+let isAdmin = false;
+
+function showAdminLogin() {
+    document.getElementById('admin-login').style.display = 'flex';
+    document.getElementById('admin-dashboard').style.display = 'none';
+    document.getElementById('player-lobby').style.display = 'none';
+}
+
+function showAdminDashboard() {
+    document.getElementById('admin-login').style.display = 'none';
+    document.getElementById('admin-dashboard').style.display = 'flex';
+    document.getElementById('player-lobby').style.display = 'none';
+    renderAdminPlayers();
+}
+
+function showPlayerLobby() {
+    document.getElementById('admin-login').style.display = 'none';
+    document.getElementById('admin-dashboard').style.display = 'none';
+    document.getElementById('player-lobby').style.display = 'flex';
+}
+
+function renderAdminPlayers() {
+    const list = document.getElementById('admin-players-list');
+    list.innerHTML = '';
+    (state.global.players || []).forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p.name || p.codename || p.id;
+        const kickBtn = document.createElement('button');
+        kickBtn.textContent = 'Kick';
+        kickBtn.className = 'kick-btn';
+        kickBtn.onclick = () => kickPlayerAdmin(p.id);
+        li.appendChild(kickBtn);
+        list.appendChild(li);
+    });
+}
+
+function kickPlayerAdmin(playerId) {
+    if (supabase) {
+        supabase.from('players').update({ status: 'kicked' }).eq('id', playerId);
+    }
+}
+
+function resetGameAdmin() {
+    if (supabase) {
+        supabase.from('game_state').update({ status: 'waiting', current_question: 1 }).eq('id', 'global');
+        supabase.from('players').update({ score: 0, status: 'active' });
+    }
+}
+
+function startGameAdmin() {
+    if (supabase) {
+        supabase.from('game_state').update({ status: 'started' }).eq('id', 'global');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Admin login button
+    const adminLoginBtn = document.getElementById('admin-login-btn');
+    if (adminLoginBtn) {
+        adminLoginBtn.onclick = function () {
+            const pwd = document.getElementById('admin-password').value;
+            if (pwd === ADMIN_PASSWORD) {
+                isAdmin = true;
+                document.getElementById('admin-login-error').style.display = 'none';
+                showAdminDashboard();
+            } else {
+                document.getElementById('admin-login-error').style.display = 'block';
+            }
+        };
+    }
+    // Admin dashboard buttons
+    const startBtn = document.getElementById('admin-start-game');
+    if (startBtn) startBtn.onclick = startGameAdmin;
+    const resetBtn = document.getElementById('admin-reset-game');
+    if (resetBtn) resetBtn.onclick = resetGameAdmin;
+});
+
+// Show admin login if ?admin=1 in URL
+if (window.location.search.includes('admin=1')) {
+    document.addEventListener('DOMContentLoaded', showAdminLogin);
+}
 // --- BELMONTS: TECH ARENA - Core Logic ---
 
 // 1. Diagnostics & Logging
@@ -118,8 +201,9 @@ function showScreen(screenId) {
 function updateUI() {
     try {
         // Lobby page logic
-        if (document.body.contains(document.getElementById('players-count'))) {
-            const players = state.global.players || [];
+        const players = state.global.players || [];
+        // Player lobby
+        if (document.getElementById('players-count')) {
             const countSpan = document.getElementById('players-count');
             const list = document.getElementById('players-list');
             if (countSpan) countSpan.textContent = `Players Joined: ${players.length} / 60`;
@@ -131,6 +215,10 @@ function updateUI() {
                     list.appendChild(li);
                 });
             }
+        }
+        // Admin dashboard
+        if (isAdmin && document.getElementById('admin-dashboard')) {
+            renderAdminPlayers();
         }
         // Removed admin panel logic
         if (state.userRole === 'PARTICIPANT' || state.playerId) syncParticipantScreen();
