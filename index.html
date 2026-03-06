@@ -958,95 +958,135 @@
             </div>
         </section>
         <!-- Admin Login Screen -->
-        <section id="admin-login-screen" class="screen" style="display:none;">
-            <div class="hero">
-                <h1 class="glitch-title" data-text="━━━ ADMIN PANEL ━━━">━━━ ADMIN PANEL ━━━</h1>
-                <div class="login-frame terror-frame" id="admin-login-frame">
-                    <input type="password" id="admin-password" placeholder="Password: 9500">
-                    <p class="hint">What's the One Piece crew called?</p>
-                    <button id="login-btn" class="neon-button purple">VERIFY CLEARANCE</button>
-                    <button id="cancel-admin" class="text-link">ABORT</button>
+        <section id="screen-admin-login" class="screen">
+            <div class="admin-login-wrap">
+                <div class="admin-login-card">
+                    <span class="admin-login-tag">KERNEL ACCESS</span>
+                    <span class="admin-login-icon">🔐</span>
+                    <h2 class="admin-login-title">CAPTAIN'S <span>BRIDGE</span></h2>
+                    <p class="admin-login-sub">AUTHORIZED PERSONNEL ONLY</p>
+                    <input type="password" id="admin-password" class="admin-pw-input" placeholder="ENTER ACCESS CODE">
+                    <div id="admin-error-msg" class="admin-error-msg"></div>
+                    <button id="login-btn" class="admin-login-btn">VERIFY IDENTITY</button>
+                    <button onclick="showScreen('home-screen')" class="text-link">ABORT ACCESS</button>
+                    <p class="admin-hint">HINT: ACCESS CODE IS "9500"</p>
                 </div>
             </div>
         </section>
 
 
-        <!-- NEW ADMIN PANEL SCREEN -->
-        <section id="screen-admin-panel" class="screen" style="display:none;">
+        <!-- Admin Panel Screen -->
+        <section id="screen-admin-panel" class="screen">
             <div class="admin-topbar">
                 <div class="admin-topbar-left">
                     <button class="admin-back-btn" onclick="showScreen('home-screen')">EXIT</button>
-                    <h2 class="admin-panel-title">BELMONTS <span>ARENA</span></h2>
-                </div>
-                <div id="admin-status-badge" class="admin-status-badge standby">
-                    <span class="status-dot"></span>
-                    <span id="admin-status-text">STANDBY</span>
+                    <div class="admin-panel-title">CAPTAIN'S <span>BRIDGE</span></div>
+                    <div id="admin-status-badge" class="admin-status-badge standby">
+                        <div class="status-dot"></div>
+                        <span id="admin-status-text">STANDBY</span>
+                    </div>
                 </div>
                 <div class="admin-topbar-right">
-                    <div class="admin-stat-chip">UNITS: <span id="ap-player-count">0</span></div>
-                    <div class="admin-stat-chip">LEVEL: <span id="ap-level-display">1</span></div>
-                    <div class="admin-stat-chip">TASK: <span id="ap-q-display">1</span></div>
+                    <div class="admin-stat-chip">CREW: <span id="admin-player-count">0</span></div>
+                    <div class="admin-stat-chip">LOC: <span id="admin-level-info">L1 / Q0</span></div>
                 </div>
             </div>
 
             <div class="admin-tabs">
-                <button class="admin-tab-btn active"
-                    onclick="switchAdminTab('admin-tab-control', this)">CONTROL</button>
-                <button class="admin-tab-btn" onclick="switchAdminTab('admin-tab-players', this)">PLAYERS</button>
-                <button class="admin-tab-btn"
-                    onclick="switchAdminTab('admin-tab-leaderboard', this)">LEADERBOARD</button>
+                <button class="admin-tab-btn active" data-tab="control">CONTROL</button>
+                <button class="admin-tab-btn" data-tab="players">PLAYERS</button>
+                <button class="admin-tab-btn" data-tab="leaderboard">LEADERBOARD</button>
             </div>
 
-            <main class="admin-panel-body">
-                <div id="admin-tab-control" class="admin-tab-content active">
-                    <span class="admin-section-label">ARENA OVERRIDE</span>
-                    <div class="level-grid">
-                        <!-- Filled by JS -->
-                    </div>
-
-                    <span class="admin-section-label">BATTLE COMMANDS</span>
-                    <div class="control-grid">
-                        <button class="ctrl-btn start" onclick="adminStartLevel()">▶ START LEVEL</button>
-                        <button class="ctrl-btn show-ans" onclick="adminShowAnswer()">📢 REVEAL ANSWER</button>
-                        <button class="ctrl-btn next-q" onclick="adminNextQuestion()">➡ NEXT PHASE</button>
-                        <button class="ctrl-btn stop" onclick="adminStopLevel()">⏹ HALT ARENA</button>
-                        <button class="ctrl-btn reset" onclick="adminResetGame()">🔄 SYSTEM RESET</button>
-                    </div>
-
-                    <div id="admin-info-panel"
-                        style="margin-top:20px; color:rgba(255,255,255,0.4); font-size:11px; letter-spacing:1px; line-height:1.8;">
-                        <div
-                            style="background:rgba(255,255,255,0.03); padding:15px; border-radius:4px; border:1px solid rgba(255,255,255,0.05);">
-                            <div>ACTIVE LEVEL: <span id="info-level-name" style="color:#00ffff;">-</span></div>
-                            <div>PHASE PROGRESS: <span id="info-q-num" style="color:#00ffff;">-</span></div>
-                            <div>UNITS IN FIELD: <span id="info-player-count" style="color:#00ffff;">-</span></div>
-                            <div>CURRENT STATUS: <span id="info-phase" style="color:#00ffff;">-</span></div>
+            <div class="admin-panel-body">
+                <!-- TAB 1: CONTROL -->
+                <div id="tab-control" class="admin-tab-content active">
+                    <div class="admin-info-box">
+                        <div class="info-item">
+                            <span class="info-label">LEVEL</span>
+                            <span class="info-value" id="info-level-name">---</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">QUESTION</span>
+                            <span class="info-value" id="info-q-num">0 / 9</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">PARTICIPANTS</span>
+                            <span class="info-value" id="info-p-count">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">PHASE</span>
+                            <span class="info-value" id="info-phase">LOBBY</span>
                         </div>
                     </div>
-                </div>
 
-                <div id="admin-tab-players" class="admin-tab-content">
-                    <span class="admin-section-label">UNIT REGISTRATION</span>
-                    <div style="display:flex; gap:10px; margin-bottom:28px;">
-                        <input type="text" id="admin-add-player-input" class="admin-pw-input" placeholder="CODENAME"
-                            style="text-align:left; letter-spacing:2px; font-size:13px; margin:0;">
-                        <button class="admin-login-btn" onclick="adminAddPlayer()" style="width:140px; padding:0;">ADD
-                            UNIT</button>
+                    <div class="admin-section-label">LEVEL SELECTOR</div>
+                    <div class="level-grid">
+                        <div class="level-card active" data-level="1" style="--lc: #3B82F6">
+                            <div class="level-card-icon">⚡</div>
+                            <div class="level-card-num">LEVEL 1</div>
+                            <div class="level-card-name">Binary Challenge</div>
+                        </div>
+                        <div class="level-card" data-level="2" style="--lc: #10B981">
+                            <div class="level-card-icon">🔧</div>
+                            <div class="level-card-num">LEVEL 2</div>
+                            <div class="level-card-name">Hardware Builder</div>
+                        </div>
+                        <div class="level-card" data-level="3" style="--lc: #8B5CF6">
+                            <div class="level-card-icon">📚</div>
+                            <div class="level-card-num">LEVEL 3</div>
+                            <div class="level-card-name">Stack/Queue Battle</div>
+                        </div>
+                        <div class="level-card" data-level="4" style="--lc: #F59E0B">
+                            <div class="level-card-icon">🌐</div>
+                            <div class="level-card-num">LEVEL 4</div>
+                            <div class="level-card-name">Network Defender</div>
+                        </div>
+                        <div class="level-card" data-level="5" style="--lc: #EF4444">
+                            <div class="level-card-icon">🏆</div>
+                            <div class="level-card-num">LEVEL 5</div>
+                            <div class="level-card-name">Tech Escape Room</div>
+                        </div>
                     </div>
 
-                    <span class="admin-section-label">ARENA ROSTER <span id="roster-count-label"></span></span>
-                    <div id="admin-player-roster">
-                        <!-- Filled by JS -->
+                    <div class="admin-section-label">COMMAND CONSOLE</div>
+                    <div class="control-grid">
+                        <button id="btn-start-level" class="ctrl-btn start">START LEVEL</button>
+                        <button id="btn-show-answer" class="ctrl-btn show-ans">SHOW ANSWER</button>
+                        <button id="btn-next-q" class="ctrl-btn next-q">NEXT QUESTION</button>
+                        <button id="btn-stop-level" class="ctrl-btn stop">STOP LEVEL</button>
+                    </div>
+
+                    <div class="danger-zone">
+                        <div class="danger-title">CRITICAL ACTIONS</div>
+                        <button id="btn-reset-game" class="ctrl-btn reset"
+                            style="border-color: #ef4444; color: #ef4444; width: 100%;">RESET ENTIRE GAME DATA</button>
                     </div>
                 </div>
 
-                <div id="admin-tab-leaderboard" class="admin-tab-content">
-                    <span class="admin-section-label">SYNCHRONIZATION RANKINGS</span>
-                    <div id="admin-leaderboard-list">
-                        <!-- Filled by JS -->
+                <!-- TAB 2: PLAYERS -->
+                <div id="tab-players" class="admin-tab-content">
+                    <div class="admin-section-label">ADD NEW CREW MEMBER</div>
+                    <div class="add-player-row">
+                        <input type="text" id="add-player-name" class="add-player-input"
+                            placeholder="ENTER PLAYER NAME...">
+                        <button id="btn-add-player" class="add-player-btn">ADD</button>
+                    </div>
+
+                    <div class="admin-section-label">CREW ROSTER</div>
+                    <div id="admin-roster-list">
+                        <!-- Roster rows injected here -->
                     </div>
                 </div>
-            </main>
+
+                <!-- TAB 3: LEADERBOARD -->
+                <div id="tab-leaderboard" class="admin-tab-content">
+                    <div class="admin-section-label">GLOBAL RANKINGS</div>
+                    <div id="admin-lb-list">
+                        <!-- Leaderboard rows injected here -->
+                    </div>
+                </div>
+            </div>
         </section>
         <!-- Admin Dashboard Screen (Hidden by default) -->
         <section id="admin-panel-screen" class="screen">
