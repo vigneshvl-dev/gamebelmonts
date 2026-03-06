@@ -1,414 +1,405 @@
 // --- ADMIN PANEL LOGIC ---
-const ADMIN_PASSWORD = '9500'; // Change as needed
-let isAdmin = false;
+const ADMIN_PASSWORD = '9500';
 
-function showAdminLogin() {
-    document.getElementById('admin-login').style.display = 'flex';
-    document.getElementById('admin-dashboard').style.display = 'none';
-    document.getElementById('player-lobby').style.display = 'none';
-}
+// LOCALSTORAGE KEYS
+const STORAGE_KEYS = {
+    GAMESTATE: 'cgl-gamestate',
+    PLAYERS: 'cgl-players'
+};
 
-function showAdminDashboard() {
-    document.getElementById('admin-login').style.display = 'none';
-    document.getElementById('admin-dashboard').style.display = 'flex';
-    document.getElementById('player-lobby').style.display = 'none';
-    renderAdminPlayers();
-}
+// INITIAL DEFAULT STATE
+const DEFAULT_GAMESTATE = {
+    phase: 'lobby',
+    currentLevel: 1,
+    currentQuestion: 0,
+    questionStartTime: null
+};
 
-function showPlayerLobby() {
-    document.getElementById('admin-login').style.display = 'none';
-    document.getElementById('admin-dashboard').style.display = 'none';
-    document.getElementById('player-lobby').style.display = 'flex';
-}
+// --- HELPER: LOCALSTORAGE ---
+const Storage = {
+    getGameState() {
+        const saved = localStorage.getItem(STORAGE_KEYS.GAMESTATE);
+        return saved ? JSON.parse(saved) : DEFAULT_GAMESTATE;
+    },
+    saveGameState(state) {
+        localStorage.setItem(STORAGE_KEYS.GAMESTATE, JSON.stringify(state));
+    },
+    getPlayers() {
+        const saved = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+        return saved ? JSON.parse(saved) : [];
+    },
+    savePlayers(players) {
+        localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+    }
+};
 
-function renderAdminPlayers() {
-    const list = document.getElementById('admin-players-list');
-    list.innerHTML = '';
-    (state.global.players || []).forEach(p => {
-        const li = document.createElement('li');
-        li.textContent = p.name || p.codename || p.id;
-        const kickBtn = document.createElement('button');
-        kickBtn.textContent = 'Kick';
-        kickBtn.className = 'kick-btn';
-        kickBtn.onclick = () => kickPlayerAdmin(p.id);
-        li.appendChild(kickBtn);
-        list.appendChild(li);
+// --- HELPER: TOAST SYSTEM ---
+const Toast = {
+    show(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${type === 'success' ? '✓' : '⚠'}</span> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+};
+
+// 4. UI Engine - UPDATED
+function showScreen(screenId) {
+    console.log("Switching to screen -> " + screenId);
+
+    // Hide all divs whose id starts with screen-
+    const allScreens = document.querySelectorAll('div[id^="screen-"]');
+    allScreens.forEach(s => {
+        s.style.display = 'none';
+        s.classList.remove('active');
     });
-}
 
-function kickPlayerAdmin(playerId) {
-    if (supabase) {
-        supabase.from('players').update({ status: 'kicked' }).eq('id', playerId);
+    // Also hide legacy screens if any
+    const legacyScreens = document.querySelectorAll('.screen');
+    legacyScreens.forEach(s => {
+        s.style.display = 'none';
+        s.classList.remove('active');
+    });
+
+    const target = document.getElementById(screenId);
+    if (target) {
+        target.style.display = 'flex';
+        target.classList.add('active');
+
+        // Initial refresh if it's the admin panel
+        if (screenId === 'screen-admin-panel') {
+            AdminController.refreshAll();
+        }
+    } else {
+        console.error("Screen element not found -> " + screenId);
     }
 }
 
-function resetGameAdmin() {
-    if (supabase) {
-        supabase.from('game_state').update({ status: 'waiting', current_question: 1 }).eq('id', 'global');
-        supabase.from('players').update({ score: 0, status: 'active' });
-    }
-}
+// --- ADMIN PANEL CONTROLLER ---
+const AdminController = {
+    activeTab: 'control',
+    pollingInterval: null,
 
-function startGameAdmin() {
-    if (supabase) {
-        supabase.from('game_state').update({ status: 'started' }).eq('id', 'global');
-    }
-}
+    init() {
+        this.bindEvents();
+        this.startPolling();
+        this.setupStorageSync();
+    },
 
-document.addEventListener('DOMContentLoaded', function () {
-    // Admin login button
-    const adminLoginBtn = document.getElementById('admin-login-btn');
-    if (adminLoginBtn) {
-        adminLoginBtn.onclick = function () {
-            const pwd = document.getElementById('admin-password').value;
+    bindEvents() {
+        // Tab Switching
+        const tabBtns = document.querySelectorAll('.admin-tab-btn');
+        if (tabBtns) {
+            tabBtns.forEach(btn => {
+                btn.onclick = (e) => this.switchTab(e.target.dataset.tab);
+            });
+        }
+
+        // Level Selection
+        const levelCards = document.querySelectorAll('.level-card');
+        if (levelCards) {
+            levelCards.forEach(card => {
+                card.onclick = () => this.setLevel(parseInt(card.dataset.level));
+            });
+        }
+
+        // Control Buttons
+        if (document.getElementById('btn-start-level')) document.getElementById('btn-start-level').onclick = () => this.startLevel();
+        if (document.getElementById('btn-show-answer')) document.getElementById('btn-show-answer').onclick = () => this.showAnswer();
+        if (document.getElementById('btn-next-q')) document.getElementById('btn-next-q').onclick = () => this.nextQuestion();
+        if (document.getElementById('btn-stop-level')) document.getElementById('btn-stop-level').onclick = () => this.stopLevel();
+        if (document.getElementById('btn-reset-game')) document.getElementById('btn-reset-game').onclick = () => this.resetEntireGame();
+
+        // Player Management
+        if (document.getElementById('btn-add-player')) document.getElementById('btn-add-player').onclick = () => this.handleAddPlayer();
+        const addPlayerInput = document.getElementById('add-player-name');
+        if (addPlayerInput) {
+            addPlayerInput.onkeydown = (e) => {
+                if (e.key === 'Enter') this.handleAddPlayer();
+            };
+        }
+    },
+
+    setupStorageSync() {
+        window.addEventListener('storage', (e) => {
+            if (e.key === STORAGE_KEYS.GAMESTATE || e.key === STORAGE_KEYS.PLAYERS) {
+                this.refreshAll();
+            }
+        });
+    },
+
+    startPolling() {
+        if (this.pollingInterval) clearInterval(this.pollingInterval);
+        this.pollingInterval = setInterval(() => {
+            this.refreshStats();
+            if (this.activeTab === 'leaderboard') this.renderLeaderboard();
+        }, 2000);
+    },
+
+    switchTab(tabId) {
+        this.activeTab = tabId;
+        document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+        document.querySelectorAll('.admin-tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `tab-${tabId}`);
+        });
+        this.refreshAll();
+    },
+
+    setLevel(lvl) {
+        const ns = Storage.getGameState();
+        ns.currentLevel = lvl;
+        ns.currentQuestion = 0;
+        ns.phase = 'lobby';
+        Storage.saveGameState(ns);
+        this.refreshAll();
+        Toast.show(`Level ${lvl} Selected`);
+    },
+
+    startLevel() {
+        const ns = Storage.getGameState();
+        ns.phase = 'playing';
+        ns.currentQuestion = 0;
+        ns.questionStartTime = Date.now();
+        Storage.saveGameState(ns);
+        this.refreshAll();
+        Toast.show("Level Started!", "success");
+    },
+
+    showAnswer() {
+        const ns = Storage.getGameState();
+        ns.phase = 'show_answer';
+        Storage.saveGameState(ns);
+        this.refreshAll();
+        Toast.show("Answers Revealed");
+    },
+
+    nextQuestion() {
+        const ns = Storage.getGameState();
+        if (ns.currentQuestion < 9) {
+            ns.currentQuestion++;
+            ns.phase = 'playing';
+            ns.questionStartTime = Date.now();
+            Storage.saveGameState(ns);
+            this.refreshAll();
+            Toast.show(`Advanced to Question ${ns.currentQuestion + 1}`);
+        } else {
+            ns.phase = 'results';
+            Storage.saveGameState(ns);
+            this.refreshAll();
+            Toast.show("Level Completed - View Results", "success");
+        }
+    },
+
+    stopLevel() {
+        const ns = Storage.getGameState();
+        ns.phase = 'lobby';
+        Storage.saveGameState(ns);
+        this.refreshAll();
+        Toast.show("Level Stopped", "error");
+    },
+
+    resetEntireGame() {
+        if (confirm("DANGER: This will wipe ALL players, scores, and reset the game state. Proceed?")) {
+            Storage.saveGameState(DEFAULT_GAMESTATE);
+            Storage.savePlayers([]);
+            this.refreshAll();
+            Toast.show("System Purged - Game Reset", "error");
+        }
+    },
+
+    handleAddPlayer() {
+        const input = document.getElementById('add-player-name');
+        if (!input) return;
+        const name = input.value.trim().toUpperCase();
+        if (!name) return;
+
+        const players = Storage.getPlayers();
+        if (players.some(p => p.name === name)) {
+            Toast.show("Name already exists in roster", "error");
+            input.classList.add('shake');
+            setTimeout(() => input.classList.remove('shake'), 400);
+            return;
+        }
+
+        const newPlayer = {
+            id: 'PL-' + Math.random().toString(36).substr(2, 9),
+            name: name,
+            score: 0,
+            answers: {},
+            joinedAt: Date.now()
+        };
+
+        players.push(newPlayer);
+        Storage.savePlayers(players);
+        input.value = '';
+        this.refreshAll();
+        Toast.show(`${name} joined the crew`);
+    },
+
+    kickPlayer(id) {
+        let players = Storage.getPlayers();
+        players = players.filter(p => p.id !== id);
+        Storage.savePlayers(players);
+        this.refreshAll();
+        Toast.show("Player removed from roster", "error");
+    },
+
+    refreshAll() {
+        this.refreshStats();
+        this.renderRoster();
+        this.renderLeaderboard();
+        this.updateLevelCards();
+    },
+
+    refreshStats() {
+        const gs = Storage.getGameState();
+        const players = Storage.getPlayers();
+        const levelNames = ["Binary Challenge", "Hardware Builder", "Stack/Queue Battle", "Network Defender", "Tech Escape Room"];
+
+        // Top Bar
+        if (document.getElementById('admin-player-count')) document.getElementById('admin-player-count').textContent = players.length;
+        if (document.getElementById('admin-level-info')) document.getElementById('admin-level-info').textContent = `L${gs.currentLevel} / Q${gs.currentQuestion + 1}`;
+
+        const badge = document.getElementById('admin-status-badge');
+        const badgeText = document.getElementById('admin-status-text');
+        if (badge && badgeText) {
+            badge.className = `admin-status-badge ${gs.phase.replace('_', '-')}`;
+            badgeText.textContent = gs.phase.toUpperCase().replace('_', ' ');
+        }
+
+        // Info Box
+        if (document.getElementById('info-level-name')) document.getElementById('info-level-name').textContent = levelNames[gs.currentLevel - 1] || "---";
+        if (document.getElementById('info-q-num')) document.getElementById('info-q-num').textContent = `${gs.currentQuestion + 1} / 10`;
+        if (document.getElementById('info-p-count')) document.getElementById('info-p-count').textContent = players.length;
+        if (document.getElementById('info-phase')) document.getElementById('info-phase').textContent = gs.phase.toUpperCase().replace('_', ' ');
+    },
+
+    updateLevelCards() {
+        const gs = Storage.getGameState();
+        document.querySelectorAll('.level-card').forEach(card => {
+            card.classList.toggle('active', parseInt(card.dataset.level) === gs.currentLevel);
+        });
+    },
+
+    renderRoster() {
+        const list = document.getElementById('admin-roster-list');
+        if (!list) return;
+        const players = Storage.getPlayers().sort((a, b) => a.joinedAt - b.joinedAt);
+
+        if (players.length === 0) {
+            list.innerHTML = '<div class="empty-state">No crew members registered.</div>';
+            return;
+        }
+
+        list.innerHTML = players.map((p, idx) => `
+            <div class="player-row" style="animation-delay: ${idx * 0.05}s">
+                <div class="player-idx">#${(idx + 1).toString().padStart(2, '0')}</div>
+                <div class="player-name-cell">${p.name}</div>
+                <div class="player-score-cell">${p.score} PTS</div>
+                <button class="kick-btn" onclick="AdminController.kickPlayer('${p.id}')">KICK</button>
+            </div>
+        `).join('');
+    },
+
+    renderLeaderboard() {
+        const list = document.getElementById('admin-lb-list');
+        if (!list) return;
+        const players = Storage.getPlayers().sort((a, b) => b.score - a.score);
+        const maxScore = players.length > 0 ? Math.max(...players.map(p => p.score), 1) : 1;
+
+        if (players.length === 0) {
+            list.innerHTML = '<div class="empty-state">Leaderboard is empty.</div>';
+            return;
+        }
+
+        list.innerHTML = players.map((p, idx) => {
+            const rankClass = idx === 0 ? 'r1' : idx === 1 ? 'r2' : idx === 2 ? 'r3' : 'rn';
+            const med = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+            const width = (p.score / maxScore) * 100;
+
+            return `
+                <div class="lb-row ${rankClass}" style="animation-delay: ${idx * 0.05}s">
+                    <div class="lb-rank ${rankClass}">${med || (idx + 1)}</div>
+                    <div style="flex: 1">
+                        <div class="lb-name">${p.name}</div>
+                        <div class="lb-bar-wrap">
+                            <div class="lb-bar ${rankClass}" style="width: ${width}%"></div>
+                        </div>
+                    </div>
+                    <div class="lb-score-unit">
+                        <div class="lb-score">${p.score}</div>
+                        <div class="lb-score-label">POINTS</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+};
+
+// --- CORE NAVIGATION & INIT ---
+function initNavigation() {
+    // Admin login redirect logic
+    if (window.location.search.includes('admin=1')) {
+        showScreen('screen-admin-login');
+    }
+
+    // Wiring existing Admin card on home screen
+    const roleCards = document.querySelectorAll('.role-card');
+    roleCards.forEach(card => {
+        if (card.innerText.includes('ADMIN') || card.innerText.includes('Control the Battle')) {
+            card.onclick = () => showScreen('screen-admin-login');
+        }
+
+        if (card.innerText.includes('PARTICIPANT')) {
+            card.onclick = () => {
+                const rs = document.getElementById('role-selection');
+                const pi = document.getElementById('player-input-group');
+                if (rs) rs.classList.add('hidden');
+                if (pi) pi.classList.remove('hidden');
+            };
+        }
+    });
+
+    // Login logic
+    const loginBtn = document.getElementById('login-btn');
+    const adminPw = document.getElementById('admin-password');
+    if (loginBtn && adminPw) {
+        loginBtn.onclick = () => {
+            const pwd = adminPw.value;
             if (pwd === ADMIN_PASSWORD) {
-                isAdmin = true;
-                document.getElementById('admin-login-error').style.display = 'none';
-                showAdminDashboard();
+                showScreen('screen-admin-panel');
             } else {
-                document.getElementById('admin-login-error').style.display = 'block';
+                Toast.show("Invalid Access Code", "error");
+                const frame = document.getElementById('admin-login-frame');
+                if (frame) {
+                    frame.classList.add('shake');
+                    setTimeout(() => frame.classList.remove('shake'), 400);
+                }
             }
         };
     }
-    // Admin dashboard buttons
-    const startBtn = document.getElementById('admin-start-game');
-    if (startBtn) startBtn.onclick = startGameAdmin;
-    const resetBtn = document.getElementById('admin-reset-game');
-    if (resetBtn) resetBtn.onclick = resetGameAdmin;
-});
-
-// Show admin login if ?admin=1 in URL
-if (window.location.search.includes('admin=1')) {
-    document.addEventListener('DOMContentLoaded', showAdminLogin);
-}
-// --- BELMONTS: TECH ARENA - Core Logic ---
-
-// 1. Diagnostics & Logging
-const ArenaLog = {
-    info: (msg) => console.log(`%c[ARENA INFO]%c ${msg}`, "color: #00f2ff; font-weight: bold", "color: #fff"),
-    warn: (msg) => console.warn(`[ARENA WARN] ${msg}`),
-    err: (msg) => console.error(`[ARENA ERROR] ${msg}`)
-};
-
-ArenaLog.info("SYSTEM SECURE: INITIALIZING KERNEL V2.1.1...");
-
-// 2. Supabase - Defensive Initialization
-let supabase = null;
-const SUPABASE_URL = 'https://loousnbpmmjrwnfwkqxs.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_SBrp-zgLSnJAQb8_XAyECQ_Vj8zF5kN';
-
-function initSupabase() {
-    if (supabase) return supabase;
-    try {
-        if (window.supabase && window.supabase.createClient) {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            ArenaLog.info("SUPABASE: INSTANCE ACQUIRED");
-        } else {
-            ArenaLog.warn("SUPABASE: Library not loaded, running in offline mode");
-        }
-    } catch (e) {
-        ArenaLog.err("SUPABASE: INITIALIZATION ERROR - " + e.message);
-    }
-    return supabase;
 }
 
-// Try to init immediately (may succeed if loaded with defer)
-initSupabase();
+// Global expose
+window.AdminController = AdminController;
+window.showScreen = showScreen;
 
-// 3. Global State
-const state = {
-    playerName: '',
-    playerId: '',
-    userRole: null,
-    currentScreen: 'loading-screen',
-    global: {
-        phase: 'lobby',
-        currentLevel: 1,
-        questionIndex: 0,
-        players: [],
-        lastUpdate: Date.now()
-    }
-};
-
-const levels = [
-    { id: 1, name: "Basics Arena", color: "#00f2ff" },
-    { id: 2, name: "Binary Challenge", color: "#bc13fe" },
-    { id: 3, name: "Hardware Builder", color: "#39ff14" },
-    { id: 4, name: "Stack & Queue Battle", color: "#ff003c" },
-    { id: 5, name: "Network Defender", color: "#ffd700" },
-    { id: 6, name: "Tech Escape Room", color: "#ff8c00" }
-];
-
-const questionsBank = {
-    1: [
-        { q: "What is the physical part of a computer called?", a: ["Software", "Hardware", "Operating System", "Network"], correct: 1 },
-        { q: "Which of these is the main 'brain' that processes all data?", a: ["Monitor", "Mouse", "CPU", "Keyboard"], correct: 2 },
-        { q: "What does RAM stand for?", a: ["Read Access Memory", "Random Access Memory", "Remote Area Mode", "Remote Application Monitor"], correct: 1 },
-        { q: "Which device is used to highlight items on the screen (pointing device)?", a: ["Printer", "Scanner", "Mouse", "Speaker"], correct: 2 },
-        { q: "Which software manages all other programs on a computer?", a: ["Word", "Chrome", "Operating System", "Photoshop"], correct: 2 }
-    ],
-    2: [
-        { q: "What is the decimal value of the binary number 1010?", a: ["8", "10", "12", "14"], correct: 1 },
-        { q: "Which of these is a bitwise operator in JavaScript?", a: ["&&", "||", "&", "!"], correct: 2 },
-        { q: "How many bits are in 1 byte?", a: ["4", "8", "16", "32"], correct: 1 }
-    ],
-    3: [
-        { q: "Which component is known as the 'brain' of the computer?", a: ["RAM", "GPU", "CPU", "SSD"], correct: 2 },
-        { q: "What type of memory is volatile and lost when power is off?", a: ["ROM", "RAM", "HDD", "FLASH"], correct: 1 },
-        { q: "Which port is commonly used for high-definition video and audio?", a: ["VGA", "USB-A", "HDMI", "PS/2"], correct: 2 }
-    ],
-    4: [
-        { q: "Which data structure follows the FIFO (First In First Out) principle?", a: ["Stack", "Queue", "Tree", "Graph"], correct: 1 },
-        { q: "What is the operation to add an element to a Stack?", a: ["Pop", "Push", "Enqueue", "Dequeue"], correct: 1 },
-        { q: "In a Queue, where does 'Dequeue' happen?", a: ["Front", "Back", "Middle", "Random"], correct: 0 }
-    ],
-    5: [
-        { q: "Which port is the default for HTTPS traffic?", a: ["80", "21", "25", "443"], correct: 3 },
-        { q: "What does DNS stand for?", a: ["Data Network System", "Domain Name System", "Digital Node Service", "Direct Net Signal"], correct: 1 },
-        { q: "Which layer of the OSI model handles routing?", a: ["Physical", "Data Link", "Network", "Transport"], correct: 2 }
-    ],
-    6: [
-        { q: "What is the time complexity of a Binary Search algorithm?", a: ["O(n)", "O(n^2)", "O(log n)", "O(1)"], correct: 2 },
-        { q: "Which keyword is used to create a constant variable in ES6?", a: ["var", "let", "const", "static"], correct: 2 },
-        { q: "What is the result of typeof null in JavaScript?", a: ["'null'", "'undefined'", "'object'", "'number'"], correct: 2 }
-    ]
-};
-
-const getEl = (id) => document.getElementById(id);
-
-// 4. UI Engine
-function showScreen(screenId) {
-    ArenaLog.info("Switching to screen -> " + screenId);
-    const screens = document.querySelectorAll('.screen');
-    screens.forEach(s => {
-        s.classList.remove('active');
-        s.style.display = 'none';
-        s.style.opacity = '';
-    });
-    const target = getEl(screenId);
-    if (target) {
-        target.classList.add('active');
-        target.style.display = 'flex';
-        target.style.opacity = '1';
-        state.currentScreen = screenId;
-        updateUI();
-        ArenaLog.info("Screen switched to -> " + screenId);
-    } else {
-        ArenaLog.err("Screen element not found -> " + screenId);
-    }
-}
-
-function updateUI() {
-    try {
-        // Lobby page logic
-        const players = state.global.players || [];
-        // Player lobby
-        if (document.getElementById('players-count')) {
-            const countSpan = document.getElementById('players-count');
-            const list = document.getElementById('players-list');
-            if (countSpan) countSpan.textContent = `Players Joined: ${players.length} / 60`;
-            if (list) {
-                list.innerHTML = '';
-                players.forEach(p => {
-                    const li = document.createElement('li');
-                    li.textContent = p.name || p.codename || p.id;
-                    list.appendChild(li);
-                });
-            }
-        }
-        // Admin dashboard
-        if (isAdmin && document.getElementById('admin-dashboard')) {
-            renderAdminPlayers();
-        }
-        // Removed admin panel logic
-        if (state.userRole === 'PARTICIPANT' || state.playerId) syncParticipantScreen();
-    } catch (e) {
-        ArenaLog.err("UI UPDATE FAIL: " + e.message);
-    }
-}
-
-// Sync Manager
-const SyncManager = {
-    async joinPlayer(player) { try { if (supabase) await supabase.from('players').upsert([player]); } catch (e) { } },
-    async updateScore(pId, points) { try { if (supabase) { const p = state.global.players.find(x => x.id === pId); if (p) await supabase.from('players').update({ score: p.score + points }).eq('id', pId); } } catch (e) { } },
-    async updateGameState(upd) { try { if (supabase) await supabase.from('game_state').upsert([{ id: 'global', ...upd }]); } catch (e) { } },
-    async kickPlayer(id) { try { if (supabase) await supabase.from('players').update({ status: 'kicked' }).eq('id', id); } catch (e) { } },
-    async loadPlayers() { try { if (supabase) { const { data } = await supabase.from('players').select('*').order('joinTime', { ascending: true }); if (data) state.global.players = data; updateUI(); } } catch (e) { } },
-    async loadGameState() { try { if (supabase) { const { data } = await supabase.from('game_state').select('*').eq('id', 'global').single(); if (data) { state.global.phase = data.phase; state.global.currentLevel = data.current_level; state.global.questionIndex = data.question_index; updateUI(); } } } catch (e) { } },
-    subscribe() {
-        if (!supabase) return;
-        supabase.channel('players_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => this.loadPlayers()).subscribe();
-        supabase.channel('state_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'game_state' }, payload => {
-            const d = payload.new;
-            if (d && d.id === 'global') {
-                state.global.phase = d.phase;
-                state.global.currentLevel = d.current_level;
-                state.global.questionIndex = d.question_index;
-                updateUI();
-            }
-        }).subscribe();
-        this.loadPlayers();
-        this.loadGameState();
-    }
-};
-
-// Removed renderAdminData and related admin panel logic
-
-function syncParticipantScreen() {
-    const g = state.global;
-    if (g.phase === 'lobby' && (state.currentScreen !== 'lobby-screen' && state.currentScreen !== 'home-screen')) showScreen('lobby-screen');
-    else if (g.phase === 'playing' && state.currentScreen !== 'quiz-screen') showScreen('quiz-screen');
-}
-
-// 5. Force Reveal Arena - For manual override
-function forceRevealArena() {
-    ArenaLog.info("Force reveal triggered");
-    const loader = getEl('loading-screen');
-    const app = getEl('app');
-
-    if (loader) {
-        loader.classList.remove('active');
-        loader.style.display = 'none';
-    }
-    if (app) {
-        app.style.display = 'flex';
-    }
-    showScreen('home-screen');
-}
-
-// 6. Global Click Delegator
-function initNavigation() {
-    document.addEventListener('click', (e) => {
-        const target = e.target.closest('[id], .sidebar-btn, .tab-btn, .level-card');
-        if (!target) return;
-        const id = target.id;
-        ArenaLog.info("CLICK DETECTED ON: " + (id || target.className || target.tagName));
-
-        // Admin Role Selection
-        if (id === 'role-admin' || target.closest('#role-admin')) {
-            ArenaLog.info("ADMIN ROLE SELECTED");
-            showScreen('admin-login-screen');
-        }
-
-        // Admin Login
-        if (id === 'login-btn') {
-            const pwd = getEl('admin-password').value;
-            if (pwd === '9500') {
-                showScreen('admin-panel-screen');
-            } else {
-                getEl('admin-login-frame').classList.add('wrong-auth');
-                setTimeout(() => getEl('admin-login-frame').classList.remove('wrong-auth'), 500);
-            }
-        }
-        if (id === 'cancel-admin') showScreen('home-screen');
-
-        if (id === 'role-participant' || target.closest('#role-participant')) {
-            ArenaLog.info("PARTICIPANT ROLE SELECTED");
-            var roleSelection = getEl('role-selection');
-            var playerInput = getEl('player-input-group');
-            if (roleSelection) roleSelection.classList.add('hidden');
-            if (playerInput) playerInput.classList.remove('hidden');
-        }
-        if (id === 'back-to-roles') {
-            var playerInput2 = getEl('player-input-group');
-            var roleSelection2 = getEl('role-selection');
-            if (playerInput2) playerInput2.classList.add('hidden');
-            if (roleSelection2) roleSelection2.classList.remove('hidden');
-        }
-
-        // Game Controls
-        if (id === 'ctrl-start') SyncManager.updateGameState({ phase: 'playing' });
-        if (id === 'ctrl-pause') SyncManager.updateGameState({ phase: 'paused' });
-        if (id === 'ctrl-restart') SyncManager.updateGameState({ question_index: 0 });
-        if (id === 'ctrl-skip') SyncManager.updateGameState({ current_level: state.global.currentLevel + 1, question_index: 0 });
-        if (id === 'ctrl-end') SyncManager.updateGameState({ phase: 'lobby' });
-
-        if (target.classList.contains('level-card')) {
-            const lvl = target.dataset.level;
-            SyncManager.updateGameState({ current_level: parseInt(lvl), phase: 'playing', question_index: 0 });
-        }
-
-        if (id === 'start-battle') {
-            const nameInput = getEl('player-name');
-            const n = nameInput ? nameInput.value.trim() : '';
-            if (n.length >= 2) {
-                state.playerName = n;
-                state.playerId = 'P-' + Date.now();
-                state.userRole = 'PARTICIPANT';
-                SyncManager.joinPlayer({ id: state.playerId, name: n, score: 0, joinTime: Date.now(), status: 'active' });
-                showScreen('lobby-screen');
-            }
-        }
-        // Force button
-        if (id === 'force-enter-btn') {
-            forceRevealArena();
-        }
-        if (id === 'play-again') showScreen('home-screen');
-    });
-}
-
-// 7. Initialization Sequence
-function initArena() {
-    if (window.ARENA_INITIALIZED) return;
-    window.ARENA_INITIALIZED = true;
-    ArenaLog.info("BOOT SEQUENCE INITIATED");
-
-    // Initialize click handlers
+document.addEventListener('DOMContentLoaded', () => {
+    AdminController.init();
     initNavigation();
 
-    // Hide loading screen and show app after short delay (MUST be before subscribe)
-    setTimeout(function () {
-        ArenaLog.info("FINISHING STARTUP...");
-        const loader = getEl('loading-screen');
-        const app = getEl('app');
+    setTimeout(() => {
+        const loader = document.getElementById('loading-screen');
+        if (loader) loader.style.display = 'none';
 
+        const app = document.getElementById('app');
         if (app) app.style.display = 'flex';
 
-        if (loader) {
-            loader.classList.remove('active');
-            loader.style.display = 'none';
-        }
-
         showScreen('home-screen');
-        ArenaLog.info("ARENA READY");
-    }, 4000);
-
-    // Try Supabase init again (in case CDN loaded after initial attempt)
-    initSupabase();
-
-    // Subscribe to Supabase if available (after setTimeout is registered)
-    try {
-        if (supabase) SyncManager.subscribe();
-    } catch (e) {
-        ArenaLog.err("Supabase subscribe failed: " + e.message);
-    }
-}
-
-// Start when DOM is ready
-document.addEventListener('DOMContentLoaded', function () {
-    ArenaLog.info("DOM Content Loaded");
-    initArena();
+    }, 2000); // Reduced delay for faster dev feedback
 });
-
-// Fallback: If DOMContentLoaded already fired
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    ArenaLog.info("Document already ready, initializing...");
-    setTimeout(initArena, 100);
-}
-
-// Safety net: Force show after 6 seconds no matter what
-setTimeout(function () {
-    const loader = getEl('loading-screen');
-    if (loader && (loader.style.display !== 'none')) {
-        ArenaLog.warn("SAFETY NET TRIGGERED - Forcing app display");
-        forceRevealArena();
-    }
-}, 6000);
-
-// Expose globals for debugging and HTML onclick handlers
-window.SyncManager = SyncManager;
-window.state = state;
-window.showScreen = showScreen;
-window.forceRevealArena = forceRevealArena;
-
-ArenaLog.info("Script loaded successfully");
