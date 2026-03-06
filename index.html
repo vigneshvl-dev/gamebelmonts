@@ -695,70 +695,158 @@
             animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        @keyframes floatIcon {
+        @keyframes shake {
 
             0%,
             100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-12px);
-            }
-        }
-
-        @keyframes pulseDot {
-
-            0%,
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-
-            50% {
-                opacity: 0.4;
-                transform: scale(0.7);
-            }
-        }
-
-        @keyframes bounceIn {
-            0% {
-                transform: translateX(-50%) scale(0.7);
-                opacity: 0;
-            }
-
-            60% {
-                transform: translateX(-50%) scale(1.05);
-                opacity: 1;
-            }
-
-            100% {
-                transform: translateX(-50%) scale(1);
-            }
-        }
-
-        @keyframes fadeUp {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideRight {
-            from {
-                opacity: 0;
-                transform: translateX(-24px);
-            }
-
-            to {
-                opacity: 1;
                 transform: translateX(0);
             }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ffff;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            animation: bounceIn 0.5s ease-out;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.success {
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .toast.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        /* Admin Panel specific fixes */
+        #screen-admin-panel {
+            background: #050505;
+            flex-direction: column;
+            align-items: stretch;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .admin-info-box {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.1);
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #00ffff;
+            font-weight: 700;
+        }
+
+        .danger-zone {
+            margin-top: 50px;
+            padding: 30px;
+            border: 1px dashed #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .danger-title {
+            color: #ef4444;
+            font-size: 14px;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            font-weight: 900;
+        }
+
+        .add-player-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .add-player-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 12px 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .add-player-input:focus {
+            border-color: #00ffff;
+        }
+
+        .add-player-btn {
+            background: #00ffff;
+            color: #000;
+            border: none;
+            padding: 0 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.3);
+            font-style: italic;
         }
     </style>
 </head>
@@ -808,6 +896,121 @@
             }
         }, 4000);
     </script>
+    <!-- ADMIN PANEL SCREEN -->
+    <div id="screen-admin-panel" class="screen">
+        <div class="admin-topbar">
+            <div class="admin-topbar-left">
+                <button class="admin-back-btn" onclick="showScreen('home-screen')">EXIT</button>
+                <div class="admin-panel-title">CAPTAIN'S <span>BRIDGE</span></div>
+                <div id="admin-status-badge" class="admin-status-badge standby">
+                    <div class="status-dot"></div>
+                    <span id="admin-status-text">STANDBY</span>
+                </div>
+            </div>
+            <div class="admin-topbar-right">
+                <div class="admin-stat-chip">CREW: <span id="admin-player-count">0</span></div>
+                <div class="admin-stat-chip">LOC: <span id="admin-level-info">L1 / Q0</span></div>
+            </div>
+        </div>
+
+        <div class="admin-tabs">
+            <button class="admin-tab-btn active" data-tab="control">CONTROL</button>
+            <button class="admin-tab-btn" data-tab="players">PLAYERS</button>
+            <button class="admin-tab-btn" data-tab="leaderboard">LEADERBOARD</button>
+        </div>
+
+        <div class="admin-panel-body">
+            <!-- TAB 1: CONTROL -->
+            <div id="tab-control" class="admin-tab-content active">
+                <div class="admin-info-box">
+                    <div class="info-item">
+                        <span class="info-label">LEVEL</span>
+                        <span class="info-value" id="info-level-name">---</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">QUESTION</span>
+                        <span class="info-value" id="info-q-num">0 / 9</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">PARTICIPANTS</span>
+                        <span class="info-value" id="info-p-count">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">PHASE</span>
+                        <span class="info-value" id="info-phase">LOBBY</span>
+                    </div>
+                </div>
+
+                <div class="admin-section-label">LEVEL SELECTOR</div>
+                <div class="level-grid">
+                    <div class="level-card active" data-level="1" style="--lc: #3B82F6">
+                        <div class="level-card-icon">⚡</div>
+                        <div class="level-card-num">LEVEL 1</div>
+                        <div class="level-card-name">Binary Challenge</div>
+                    </div>
+                    <div class="level-card" data-level="2" style="--lc: #10B981">
+                        <div class="level-card-icon">🔧</div>
+                        <div class="level-card-num">LEVEL 2</div>
+                        <div class="level-card-name">Hardware Builder</div>
+                    </div>
+                    <div class="level-card" data-level="3" style="--lc: #8B5CF6">
+                        <div class="level-card-icon">📚</div>
+                        <div class="level-card-num">LEVEL 3</div>
+                        <div class="level-card-name">Stack/Queue Battle</div>
+                    </div>
+                    <div class="level-card" data-level="4" style="--lc: #F59E0B">
+                        <div class="level-card-icon">🌐</div>
+                        <div class="level-card-num">LEVEL 4</div>
+                        <div class="level-card-name">Network Defender</div>
+                    </div>
+                    <div class="level-card" data-level="5" style="--lc: #EF4444">
+                        <div class="level-card-icon">🏆</div>
+                        <div class="level-card-num">LEVEL 5</div>
+                        <div class="level-card-name">Tech Escape Room</div>
+                    </div>
+                </div>
+
+                <div class="admin-section-label">COMMAND CONSOLE</div>
+                <div class="control-grid">
+                    <button id="btn-start-level" class="ctrl-btn start">START LEVEL</button>
+                    <button id="btn-show-answer" class="ctrl-btn show-ans">SHOW ANSWER</button>
+                    <button id="btn-next-q" class="ctrl-btn next-q">NEXT QUESTION</button>
+                    <button id="btn-stop-level" class="ctrl-btn stop">STOP LEVEL</button>
+                </div>
+
+                <div class="danger-zone">
+                    <div class="danger-title">CRITICAL ACTIONS</div>
+                    <button id="btn-reset-game" class="ctrl-btn reset"
+                        style="border-color: #ef4444; color: #ef4444; width: 100%;">RESET ENTIRE GAME DATA</button>
+                </div>
+            </div>
+
+            <!-- TAB 2: PLAYERS -->
+            <div id="tab-players" class="admin-tab-content">
+                <div class="admin-section-label">ADD NEW CREW MEMBER</div>
+                <div class="add-player-row">
+                    <input type="text" id="add-player-name" class="add-player-input" placeholder="ENTER PLAYER NAME...">
+                    <button id="btn-add-player" class="add-player-btn">ADD</button>
+                </div>
+
+                <div class="admin-section-label">CREW ROSTER</div>
+                <div id="admin-roster-list">
+                    <!-- Roster rows injected here -->
+                </div>
+            </div>
+
+            <!-- TAB 3: LEADERBOARD -->
+            <div id="tab-leaderboard" class="admin-tab-content">
+                <div class="admin-section-label">GLOBAL RANKINGS</div>
+                <div id="admin-lb-list">
+                    <!-- Leaderboard rows injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
     <!-- Background & FX -->
     <div id="bg-container">
         <div class="gradient-bg"></div>
